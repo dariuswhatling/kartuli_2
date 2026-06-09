@@ -52,7 +52,9 @@ Rules:
 - All quiz content MUST come from LESSON CONTEXT below.
 - Write brief instructional prose in your message AND call the tool(s).
 - Never reveal correct answers in prose — only in tool arguments.
-- After the student answers via a widget, continue the lesson; do not ask what they want next.
+- When the student's next message is a widget answer (lines like "[Multiple choice — Correct]"),
+  briefly address the result, then immediately continue: explain if needed, then present the
+  next drill via another tool call. Never stop after feedback alone.
 """
 
 TUTOR_SYSTEM = """You are a professional Georgian (Kartuli) language tutor in an ongoing
@@ -279,12 +281,18 @@ def _synthesize_widget(
     return [normalized] if normalized else []
 
 
-def generate_reply(conversation: Conversation, user_message: str) -> Message:
+def generate_reply(
+    conversation: Conversation,
+    user_message: str,
+    *,
+    continue_scope: dict | None = None,
+    continue_interactive: bool = False,
+) -> Message:
     user = conversation.user
     settings_obj = get_user_settings(user)
     model = settings_obj.chat_model
 
-    scope = extract_scope(user, user_message, model)
+    scope = continue_scope if continue_scope else extract_scope(user, user_message, model)
     chunks = retrieve_chunks(
         user,
         user_message,
@@ -313,11 +321,17 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
         context=context,
     )
 
+    history = _history_messages(conversation)
     messages = [{"role": "system", "content": system}]
-    messages.extend(_history_messages(conversation))
-    messages.append({"role": "user", "content": user_message})
+    messages.extend(history)
+    if (
+        not history
+        or history[-1]["role"] != "user"
+        or history[-1]["content"] != user_message
+    ):
+        messages.append({"role": "user", "content": user_message})
 
-    force_tools = _wants_interactive(user_message, scope)
+    force_tools = continue_interactive or _wants_interactive(user_message, scope)
     display_text, widgets = _run_tutor(model, messages, force_tools=force_tools)
 
     if not widgets and force_tools and chunks:

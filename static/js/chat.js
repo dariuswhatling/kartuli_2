@@ -47,7 +47,7 @@
         widgetEl.appendChild(fb);
     }
 
-    async function postInteract(messageId, widgetId, response) {
+    async function postInteract(messageId, widgetId, response, thinking) {
         var body = new URLSearchParams({
             message_id: messageId,
             widget_id: widgetId,
@@ -58,7 +58,28 @@
             headers: { "X-CSRFToken": csrf },
             body: body,
         });
-        return resp.json();
+        var data = await resp.json();
+        if (thinking) thinking.remove();
+        return data;
+    }
+
+    function appendFollowup(data) {
+        if (data.user) {
+            messages.appendChild(buildMessageEl("user", data.user));
+        }
+        if (data.assistant) {
+            messages.appendChild(buildMessageEl("assistant", data.assistant));
+        } else if (data.followup_error) {
+            messages.appendChild(buildMessageEl("assistant", { content: "⚠ " + data.followup_error }));
+        }
+        scrollDown();
+    }
+
+    async function submitWidgetAnswer(messageId, widgetId, response, w) {
+        var thinking = buildMessageEl("assistant", { content: "…" });
+        messages.appendChild(thinking);
+        scrollDown();
+        return postInteract(messageId, widgetId, response, thinking);
     }
 
     function disableOptions(widgetEl) {
@@ -94,11 +115,12 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await postInteract(messageId, w.id, String(i));
+                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
                 if (!data.result) return;
                 applyChoiceResult(opts, i, data.result);
                 showFeedback(wrap, data.result);
                 w.answered = true;
+                appendFollowup(data);
             });
             opts.appendChild(btn);
         });
@@ -118,7 +140,7 @@
             btn.type = "button";
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await postInteract(messageId, w.id, val);
+                var data = await submitWidgetAnswer(messageId, w.id, val, w);
                 if (!data.result) return;
                 row.querySelectorAll(".widget-opt").forEach(function (b) {
                     b.disabled = true;
@@ -130,6 +152,7 @@
                 });
                 showFeedback(wrap, data.result);
                 w.answered = true;
+                appendFollowup(data);
             });
             row.appendChild(btn);
         });
@@ -150,11 +173,12 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await postInteract(messageId, w.id, String(i));
+                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
                 if (!data.result) return;
                 applyChoiceResult(opts, i, data.result);
                 if (data.result) showFeedback(wrap, data.result);
                 w.answered = true;
+                appendFollowup(data);
             });
             opts.appendChild(btn);
         });
@@ -178,7 +202,7 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await postInteract(messageId, w.id, String(i));
+                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
                 if (!data.result) return;
                 applyChoiceResult(opts, i, data.result);
                 if (data.result.correct) {
@@ -188,6 +212,7 @@
                 }
                 showFeedback(wrap, data.result);
                 w.answered = true;
+                appendFollowup(data);
             });
             opts.appendChild(btn);
         });
@@ -209,11 +234,12 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await postInteract(messageId, w.id, String(i));
+                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
                 if (!data.result) return;
                 applyChoiceResult(opts, i, data.result);
                 showFeedback(wrap, data.result);
                 w.answered = true;
+                appendFollowup(data);
             });
             opts.appendChild(btn);
         });
@@ -240,7 +266,7 @@
             var revealBtn = el("button", "btn btn-ghost btn-sm", "Reveal answer");
             revealBtn.type = "button";
             revealBtn.addEventListener("click", async function () {
-                var data = await postInteract(messageId, w.id, "reveal");
+                var data = await postInteract(messageId, w.id, "reveal", null);
                 if (data.reveal) {
                     backEl.textContent = data.back;
                     backEl.style.display = "block";
@@ -251,15 +277,17 @@
                     practice.type = "button";
                     knew.addEventListener("click", async function () {
                         disableOptions(wrap);
-                        var res = await postInteract(messageId, w.id, "knew");
+                        var res = await submitWidgetAnswer(messageId, w.id, "knew", w);
                         if (res.result) showFeedback(wrap, res.result);
                         w.answered = true;
+                        appendFollowup(res);
                     });
                     practice.addEventListener("click", async function () {
                         disableOptions(wrap);
-                        var res = await postInteract(messageId, w.id, "practice");
+                        var res = await submitWidgetAnswer(messageId, w.id, "practice", w);
                         if (res.result) showFeedback(wrap, res.result);
                         w.answered = true;
+                        appendFollowup(res);
                     });
                     actions.appendChild(knew);
                     actions.appendChild(practice);
@@ -285,10 +313,11 @@
                 btn.addEventListener("click", async function () {
                     if (w.answered) return;
                     disableOptions(wrap);
-                    var data = await postInteract(messageId, w.id, String(rating));
+                    var data = await submitWidgetAnswer(messageId, w.id, String(rating), w);
                     btn.classList.add("correct");
                     if (data.result) showFeedback(wrap, data.result);
                     w.answered = true;
+                    appendFollowup(data);
                 });
                 row.appendChild(btn);
             })(i);

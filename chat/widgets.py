@@ -398,6 +398,53 @@ def grade_widget(widget: dict, response: str) -> dict:
     return out
 
 
+def widget_answer_message(widget: dict, result: dict) -> str:
+    """Turn a widget tap into a user message the tutor agent can respond to."""
+    wtype = widget["type"]
+    label = result.get("label", "")
+    topic = (
+        widget.get("prompt")
+        or widget.get("statement")
+        or widget.get("georgian")
+        or widget.get("front")
+        or ""
+    )
+    topic = str(topic).strip()[:160]
+
+    type_names = {
+        "mcq": "Multiple choice",
+        "true_false": "True/false",
+        "translate_pick": "Translation",
+        "flashcard": "Flashcard",
+        "fill_blank": "Fill the blank",
+        "conjugate": "Conjugation",
+        "self_rating": "Confidence",
+    }
+    heading = type_names.get(wtype, wtype)
+
+    if wtype == "self_rating":
+        lines = [f"[{heading}]"]
+        if topic:
+            lines.append(topic)
+        if label:
+            lines.append(f"Rating: {label}")
+        return "\n".join(lines)
+
+    if result.get("correct") is True:
+        verdict = "Correct"
+    elif result.get("correct") is False:
+        verdict = "Incorrect"
+    else:
+        verdict = "Answered"
+
+    lines = [f"[{heading} — {verdict}]"]
+    if topic:
+        lines.append(f"Prompt: {topic}")
+    if label:
+        lines.append(f"My answer: {label}")
+    return "\n".join(lines)
+
+
 def memory_note(widget: dict, result: dict) -> str:
     wtype = widget["type"]
     topic = widget.get("prompt") or widget.get("statement") or widget.get("georgian") or wtype

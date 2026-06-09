@@ -10,7 +10,7 @@ from lessons.models import Lesson
 
 from .agent import generate_reply
 from .models import Conversation, Message
-from .widgets import client_payload, grade_widget, memory_note
+from .widgets import client_payload, grade_widget, memory_note, widget_answer_message
 
 
 def _assistant_payload(msg: Message) -> dict:
@@ -144,7 +144,39 @@ def widget_interact(request, pk: int):
         metadata={"widget_type": target["type"], "scope": scope},
     )
 
-    return JsonResponse({"result": result})
+    user_content = widget_answer_message(target, result)
+    user_msg = Message.objects.create(
+        conversation=conversation,
+        role=Message.Role.USER,
+        content=user_content,
+        metadata={"widget_answer": True, "widget_id": widget_id, "source_message_id": message_id},
+    )
+
+    continue_interactive = scope.get("mode") in {"quiz", "review"}
+    try:
+        assistant_msg = generate_reply(
+            conversation,
+            user_content,
+            continue_scope=scope or None,
+            continue_interactive=continue_interactive,
+        )
+    except Exception as exc:  # noqa: BLE001
+        return JsonResponse(
+            {
+                "result": result,
+                "user": {"id": user_msg.id, "content": user_content},
+                "followup_error": f"Tutor could not continue: {exc}",
+            },
+            status=502,
+        )
+
+    return JsonResponse(
+        {
+            "result": result,
+            "user": {"id": user_msg.id, "content": user_content},
+            "assistant": _assistant_payload(assistant_msg),
+        }
+    )
 
 
 @login_required
