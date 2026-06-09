@@ -19,10 +19,23 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _host(value: str) -> str:
+    """Normalise an allowed host: strip scheme and any trailing path/port-path."""
+    value = value.replace("https://", "").replace("http://", "")
+    return value.split("/")[0].strip()
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-secret-key-change-me")
 DEBUG = env_bool("DJANGO_DEBUG", False)
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
-CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8000")
+
+ALLOWED_HOSTS = [_host(h) for h in env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1") if _host(h)]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["*"]
+
+CSRF_TRUSTED_ORIGINS = [
+    o for o in env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:8000")
+    if o.startswith("http")
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

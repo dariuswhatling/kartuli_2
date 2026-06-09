@@ -1,53 +1,58 @@
+# Coolify-targeted compose. Coolify substitutes the SERVICE_* "magic"
+# variables (generating domains + credentials) at deploy time.
+# For local development use the runserver/SQLite path in the README instead.
 services:
   web:
     build: .
-    restart: unless-stopped
     environment:
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-False}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS}
-      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS}
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      OPENROUTER_APP_NAME: ${OPENROUTER_APP_NAME:-Kartuli Tutor}
-      OPENROUTER_SITE_URL: ${OPENROUTER_SITE_URL}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
-      MEM0_ENABLED: ${MEM0_ENABLED:-True}
-      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-}
-      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
-      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+      # Coolify generates a domain for the web UI on port 8000.
+      SERVICE_FQDN_WEB_8000: ""
+      DJANGO_SECRET_KEY: "${SERVICE_PASSWORD_64_DJANGO}"
+      DJANGO_DEBUG: "False"
+      DJANGO_ALLOWED_HOSTS: "${SERVICE_FQDN_WEB},localhost,127.0.0.1"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "${SERVICE_URL_WEB}"
+      DATABASE_URL: "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db:5432/kartuli"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+      OPENROUTER_APP_NAME: "Kartuli Tutor"
+      OPENROUTER_SITE_URL: "${SERVICE_URL_WEB}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      OPENAI_EMBEDDING_MODEL: "text-embedding-3-small"
+      MEM0_ENABLED: "${MEM0_ENABLED:-True}"
+      DJANGO_SUPERUSER_USERNAME: "${DJANGO_SUPERUSER_USERNAME:-}"
+      DJANGO_SUPERUSER_EMAIL: "${DJANGO_SUPERUSER_EMAIL:-}"
+      DJANGO_SUPERUSER_PASSWORD: "${DJANGO_SUPERUSER_PASSWORD:-}"
+    expose:
+      - "8000"
     volumes:
       - media:/app/media
     depends_on:
-      - db
-    ports:
-      - "8000:8000"
+      db:
+        condition: service_healthy
 
   db:
     image: pgvector/pgvector:pg16
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: "${SERVICE_USER_POSTGRES}"
+      POSTGRES_PASSWORD: "${SERVICE_PASSWORD_POSTGRES}"
+      POSTGRES_DB: kartuli
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${SERVICE_USER_POSTGRES} -d kartuli"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   adminer:
     image: adminer:latest
-    restart: unless-stopped
+    environment:
+      # Coolify generates a separate domain for the DB GUI on port 8080.
+      SERVICE_FQDN_ADMINER_8080: ""
+      ADMINER_DEFAULT_SERVER: db
+    expose:
+      - "8080"
     depends_on:
       - db
-    ports:
-      - "8080:8080"
-    environment:
-      ADMINER_DEFAULT_SERVER: db
 
 volumes:
   pgdata:
