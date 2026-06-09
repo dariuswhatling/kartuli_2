@@ -48,12 +48,13 @@ body {
     min-height: 100%;
 }
 
-/* Chat: lock viewport so only the message list scrolls (fixes iOS Safari). */
+/* Chat: full-screen shell; only .messages scrolls (iOS Safari). */
 body.body--chat {
     height: 100%;
     height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
+    background: var(--bg);
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -166,15 +167,15 @@ a:hover { color: var(--accent-hover); }
 }
 .main--chat {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     max-width: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
     overflow: hidden;
-    /* Respect iPhone home-indicator / notch without leaving gaps */
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg);
 }
 .main--auth {
     min-height: 100dvh;
@@ -512,10 +513,7 @@ input:focus, select:focus, textarea:focus {
 
 /* ---- Chat ---- */
 .chat-page {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
+    height: 100%;
     width: 100%;
 }
 .conv-list { display: flex; flex-direction: column; gap: 2px; }
@@ -536,24 +534,23 @@ input:focus, select:focus, textarea:focus {
 }
 
 .chat-panel {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    background: var(--bg);
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
     width: 100%;
-    max-width: 720px;
-    margin: 0 auto;
+    max-width: 100%;
+    margin: 0;
+    background: var(--bg);
 }
 .chat-toolbar {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    gap: 8px;
+    padding: 10px 12px;
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
     background: var(--surface);
     border-bottom: 1px solid var(--border-light);
-    flex: 0 0 auto;
+    z-index: 5;
 }
 .chat-toolbar-title {
     font-weight: 600;
@@ -565,60 +562,57 @@ input:focus, select:focus, textarea:focus {
     text-overflow: ellipsis;
 }
 .messages {
-    flex: 1 1 0;
-    min-height: 0;
     overflow-x: hidden;
-    overflow-y: auto;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+    overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    touch-action: pan-y;
+    padding: 10px 12px 14px;
+    /* Block layout — avoids iOS flex-stretch bugs on bubbles */
+    display: block;
 }
 .msg {
-    flex: 0 0 auto;
+    display: block;
     width: fit-content;
-    max-width: min(78%, 320px);
-    padding: 10px 14px;
-    border-radius: 18px;
+    max-width: 85%;
+    margin: 0 0 10px;
+    padding: 9px 12px;
+    border-radius: 16px;
     white-space: pre-wrap;
     word-wrap: break-word;
     overflow-wrap: anywhere;
     font-size: 15px;
-    line-height: 1.45;
+    line-height: 1.4;
     box-shadow: var(--shadow-sm);
 }
 .msg.user {
-    align-self: flex-end;
+    margin-left: auto;
+    margin-right: 0;
     background: var(--accent);
     color: #fff;
-    border-bottom-right-radius: 6px;
-    max-width: min(72%, 280px);
+    border-bottom-right-radius: 5px;
+    max-width: 80%;
 }
 .msg.assistant {
-    align-self: flex-start;
+    margin-right: auto;
+    margin-left: 0;
     background: var(--surface);
     border: 1px solid var(--border-light);
-    border-bottom-left-radius: 6px;
-    max-width: min(88%, 360px);
+    border-bottom-left-radius: 5px;
+    max-width: 90%;
 }
-.msg-text { margin-bottom: 0; }
-.msg-text + .widget-stack { margin-top: 12px; }
+.msg-text { margin: 0; }
+.msg-text + .widget-stack { margin-top: 10px; }
 
 /* ---- Interactive widgets ---- */
 .widget-stack {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
-    max-width: 100%;
+    min-width: 0;
 }
 .msg.assistant:has(.widget-stack) {
-    width: 100%;
-    max-width: min(92%, 380px);
+    max-width: 92%;
 }
 .widget {
     background: var(--surface-2);
@@ -774,11 +768,11 @@ input:focus, select:focus, textarea:focus {
 .composer {
     display: flex;
     align-items: flex-end;
-    gap: 10px;
-    padding: 10px 12px 10px;
+    gap: 8px;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom, 0px));
     background: var(--surface);
     border-top: 1px solid var(--border-light);
-    flex: 0 0 auto;
+    z-index: 5;
 }
 .composer textarea {
     flex: 1;
@@ -798,11 +792,11 @@ input:focus, select:focus, textarea:focus {
 .empty-hint {
     color: var(--muted);
     text-align: center;
-    margin: auto;
+    margin: 24px auto;
     max-width: 300px;
     font-size: 14px;
     line-height: 1.6;
-    padding: 20px;
+    padding: 12px;
 }
 .empty-hint p { margin: 0 0 8px; }
 
@@ -827,9 +821,10 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
     .settings-card-header { flex-direction: column; align-items: stretch; }
     .settings-card-header .btn { align-self: flex-start; }
     .row-between--lesson-header { flex-direction: column; align-items: flex-start; }
-    .chat-panel { max-width: 100%; }
-    .msg { max-width: min(82%, 300px); }
-    .msg.user { max-width: min(75%, 260px); }
-    .msg.assistant { max-width: min(90%, 340px); }
-    .widget { padding: 12px; }
+    .msg { max-width: 88%; padding: 8px 11px; font-size: 14px; }
+    .msg.user { max-width: 82%; }
+    .msg.assistant { max-width: 92%; }
+    .msg.assistant:has(.widget-stack) { max-width: 94%; }
+    .widget { padding: 10px; }
+    .composer textarea { font-size: 16px; }
 }
