@@ -1,4 +1,4 @@
-{% if message.role == "user" %}
+{% if message.role == "user" and not message.metadata.widget_answer %}
 <div class="msg user" data-message-id="{{ message.id }}">
     <div class="msg-text">{{ message.content }}</div>
 </div>

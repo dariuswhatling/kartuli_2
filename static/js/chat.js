@@ -64,9 +64,6 @@
     }
 
     function appendFollowup(data) {
-        if (data.user) {
-            messages.appendChild(buildMessageEl("user", data.user));
-        }
         if (data.assistant) {
             messages.appendChild(buildMessageEl("assistant", data.assistant));
         } else if (data.followup_error) {
@@ -75,7 +72,12 @@
         scrollDown();
     }
 
-    async function submitWidgetAnswer(messageId, widgetId, response, w) {
+    function lockWidget(w, wrap) {
+        w.answered = true;
+        disableOptions(wrap);
+    }
+
+    async function submitWidgetAnswer(messageId, widgetId, response) {
         var thinking = buildMessageEl("assistant", { content: "…" });
         messages.appendChild(thinking);
         scrollDown();
@@ -115,11 +117,11 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
-                if (!data.result) return;
+                lockWidget(w, wrap);
+                var data = await submitWidgetAnswer(messageId, w.id, String(i));
+                if (!data.result) { w.answered = false; return; }
                 applyChoiceResult(opts, i, data.result);
                 showFeedback(wrap, data.result);
-                w.answered = true;
                 appendFollowup(data);
             });
             opts.appendChild(btn);
@@ -140,8 +142,9 @@
             btn.type = "button";
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await submitWidgetAnswer(messageId, w.id, val, w);
-                if (!data.result) return;
+                lockWidget(w, wrap);
+                var data = await submitWidgetAnswer(messageId, w.id, val);
+                if (!data.result) { w.answered = false; return; }
                 row.querySelectorAll(".widget-opt").forEach(function (b) {
                     b.disabled = true;
                     var isTrue = b.textContent === "True";
@@ -151,7 +154,6 @@
                     else if (data.result.correct_value === false && !isTrue) b.classList.add("correct");
                 });
                 showFeedback(wrap, data.result);
-                w.answered = true;
                 appendFollowup(data);
             });
             row.appendChild(btn);
@@ -173,11 +175,11 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
-                if (!data.result) return;
+                lockWidget(w, wrap);
+                var data = await submitWidgetAnswer(messageId, w.id, String(i));
+                if (!data.result) { w.answered = false; return; }
                 applyChoiceResult(opts, i, data.result);
                 if (data.result) showFeedback(wrap, data.result);
-                w.answered = true;
                 appendFollowup(data);
             });
             opts.appendChild(btn);
@@ -202,8 +204,9 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
-                if (!data.result) return;
+                lockWidget(w, wrap);
+                var data = await submitWidgetAnswer(messageId, w.id, String(i));
+                if (!data.result) { w.answered = false; return; }
                 applyChoiceResult(opts, i, data.result);
                 if (data.result.correct) {
                     wrap.querySelector(".widget-blank-gap").textContent = opt;
@@ -211,7 +214,6 @@
                     wrap.querySelector(".widget-blank-gap").textContent = w.options[data.result.correct_index];
                 }
                 showFeedback(wrap, data.result);
-                w.answered = true;
                 appendFollowup(data);
             });
             opts.appendChild(btn);
@@ -234,11 +236,11 @@
             btn.dataset.idx = String(i);
             btn.addEventListener("click", async function () {
                 if (w.answered) return;
-                var data = await submitWidgetAnswer(messageId, w.id, String(i), w);
-                if (!data.result) return;
+                lockWidget(w, wrap);
+                var data = await submitWidgetAnswer(messageId, w.id, String(i));
+                if (!data.result) { w.answered = false; return; }
                 applyChoiceResult(opts, i, data.result);
                 showFeedback(wrap, data.result);
-                w.answered = true;
                 appendFollowup(data);
             });
             opts.appendChild(btn);
@@ -276,17 +278,19 @@
                     knew.type = "button";
                     practice.type = "button";
                     knew.addEventListener("click", async function () {
-                        disableOptions(wrap);
-                        var res = await submitWidgetAnswer(messageId, w.id, "knew", w);
-                        if (res.result) showFeedback(wrap, res.result);
-                        w.answered = true;
+                        if (w.answered) return;
+                        lockWidget(w, wrap);
+                        var res = await submitWidgetAnswer(messageId, w.id, "knew");
+                        if (!res.result) { w.answered = false; return; }
+                        showFeedback(wrap, res.result);
                         appendFollowup(res);
                     });
                     practice.addEventListener("click", async function () {
-                        disableOptions(wrap);
-                        var res = await submitWidgetAnswer(messageId, w.id, "practice", w);
-                        if (res.result) showFeedback(wrap, res.result);
-                        w.answered = true;
+                        if (w.answered) return;
+                        lockWidget(w, wrap);
+                        var res = await submitWidgetAnswer(messageId, w.id, "practice");
+                        if (!res.result) { w.answered = false; return; }
+                        showFeedback(wrap, res.result);
                         appendFollowup(res);
                     });
                     actions.appendChild(knew);
@@ -312,11 +316,11 @@
                 btn.type = "button";
                 btn.addEventListener("click", async function () {
                     if (w.answered) return;
-                    disableOptions(wrap);
-                    var data = await submitWidgetAnswer(messageId, w.id, String(rating), w);
+                    lockWidget(w, wrap);
+                    var data = await submitWidgetAnswer(messageId, w.id, String(rating));
+                    if (!data.result) { w.answered = false; return; }
                     btn.classList.add("correct");
-                    if (data.result) showFeedback(wrap, data.result);
-                    w.answered = true;
+                    showFeedback(wrap, data.result);
                     appendFollowup(data);
                 });
                 row.appendChild(btn);
