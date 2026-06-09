@@ -90,7 +90,7 @@ class Attempt(models.Model):
         related_name="attempts",
     )
     skill = models.ForeignKey(
-        Skill, on_delete=models.CASCADE, related_name="attempts"
+        Skill, on_delete=models.CASCADE, related_name="attempt_log"
     )
     question = models.TextField(blank=True)
     answer = models.TextField(blank=True)
