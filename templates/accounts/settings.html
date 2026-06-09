@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Settings · Kartuli Tutor{% endblock %}
 {% block content %}
-<div class="page-header">
-    <h1>Settings</h1>
-    <p>Choose your AI models and manage lesson PDFs.</p>
+<div class="page-toolbar">
+    <button type="button" class="btn btn-ghost btn-icon" id="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+    <div class="page-toolbar-text">
+        <h1>Settings</h1>
+        <p>Models and lesson PDFs</p>
+    </div>
 </div>
 
 <div class="settings-stack">
@@ -113,5 +118,6 @@
 
 {% block scripts %}
 {% load static %}
+<script src="{% static 'js/menu.js' %}"></script>
 <script src="{% static 'js/settings.js' %}"></script>
 {% endblock %}

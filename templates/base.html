@@ -14,20 +14,6 @@
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
-    <header class="topbar">
-        <a class="brand" href="{% url 'chat:home' %}">ქართული · Kartuli</a>
-        {% if user.is_authenticated %}
-        <nav class="topnav">
-            <a href="{% url 'chat:home' %}">Chat</a>
-            <a href="{% url 'accounts:settings' %}">Settings</a>
-            <form action="{% url 'accounts:logout' %}" method="post" class="inline">
-                {% csrf_token %}
-                <button type="submit" class="linklike">Log out</button>
-            </form>
-        </nav>
-        {% endif %}
-    </header>
-
     {% if messages %}
     <div class="flash-wrap">
         {% for message in messages %}
@@ -36,22 +22,25 @@
     </div>
     {% endif %}
 
+    {% if user.is_authenticated %}
+    <div class="menu-backdrop" id="menu-backdrop"></div>
+    <aside class="menu-drawer" id="menu-drawer" aria-label="Menu">
+        <div class="menu-brand">ქართული · Kartuli</div>
+        {% block drawer_content %}{% endblock %}
+        <nav class="menu-nav">
+            <a href="{% url 'chat:home' %}">Chat</a>
+            <a href="{% url 'accounts:settings' %}">Settings</a>
+        </nav>
+        <form action="{% url 'accounts:logout' %}" method="post" class="menu-logout">
+            {% csrf_token %}
+            <button type="submit" class="menu-logout-btn">Log out</button>
+        </form>
+    </aside>
+    {% endif %}
+
     <main class="main {% block main_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
-
-    {% if user.is_authenticated %}
-    <nav class="bottom-nav" aria-label="Main">
-        <a href="{% url 'chat:home' %}" class="{% if request.resolver_match.app_name == 'chat' %}active{% endif %}">
-            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            Chat
-        </a>
-        <a href="{% url 'accounts:settings' %}" class="{% if request.resolver_match.url_name == 'settings' %}active{% endif %}">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            Settings
-        </a>
-    </nav>
-    {% endif %}
 
     {% block scripts %}{% endblock %}
 </body>

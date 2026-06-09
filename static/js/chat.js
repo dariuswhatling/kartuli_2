@@ -19,29 +19,6 @@
         self_rating: "Confidence check",
     };
 
-    /* Sessions drawer */
-    var toggle = document.getElementById("sessions-toggle");
-    var drawer = document.getElementById("sessions-drawer");
-    var backdrop = document.getElementById("sessions-backdrop");
-
-    function closeDrawer() {
-        if (drawer) drawer.classList.remove("open");
-        if (backdrop) backdrop.classList.remove("open");
-        document.body.style.overflow = "";
-    }
-    function openDrawer() {
-        if (drawer) drawer.classList.add("open");
-        if (backdrop) backdrop.classList.add("open");
-        document.body.style.overflow = "hidden";
-    }
-    if (toggle) {
-        toggle.addEventListener("click", function () {
-            if (drawer && drawer.classList.contains("open")) closeDrawer();
-            else openDrawer();
-        });
-    }
-    if (backdrop) backdrop.addEventListener("click", closeDrawer);
-
     function resizeInput() {
         input.style.height = "auto";
         input.style.height = Math.min(input.scrollHeight, 120) + "px";

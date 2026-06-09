@@ -1,12 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ lesson.title }} · Kartuli Tutor{% endblock %}
 {% block content %}
-<div class="page-header row-between row-between--lesson-header">
-    <div>
+<div class="page-toolbar row-between--lesson-header">
+    <button type="button" class="btn btn-ghost btn-icon" id="menu-toggle" aria-label="Menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+    </button>
+    <div class="page-toolbar-text" style="flex:1">
         <h1>{{ lesson.title }}</h1>
-        <p>{{ lesson.chunk_count }} chunks · uploaded {{ lesson.uploaded_at|date:"M j, Y" }}</p>
+        <p>{{ lesson.chunk_count }} chunks · {{ lesson.uploaded_at|date:"M j, Y" }}</p>
     </div>
-    <a class="btn btn-ghost btn-sm" href="{% url 'accounts:settings' %}">← Settings</a>
 </div>
 
 <div class="card">
@@ -41,4 +43,9 @@
     {% endif %}
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'js/menu.js' %}"></script>
 {% endblock %}
