@@ -9,8 +9,11 @@ services:
       SERVICE_FQDN_WEB_8000: ""
       DJANGO_SECRET_KEY: "${SERVICE_PASSWORD_64_DJANGO}"
       DJANGO_DEBUG: "False"
-      DJANGO_ALLOWED_HOSTS: "${SERVICE_FQDN_WEB},localhost,127.0.0.1"
-      DJANGO_CSRF_TRUSTED_ORIGINS: "${SERVICE_URL_WEB}"
+      # Permissive host (app sits behind the Coolify/Traefik proxy). CSRF
+      # origins are explicit and managed as a Coolify env var so multiple
+      # domains (custom + sslip) can be trusted without repo edits.
+      DJANGO_ALLOWED_HOSTS: "${DJANGO_ALLOWED_HOSTS:-*}"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "${DJANGO_CSRF_TRUSTED_ORIGINS:-$SERVICE_URL_WEB}"
       DATABASE_URL: "postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db:5432/kartuli"
       OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
       OPENROUTER_APP_NAME: "Kartuli Tutor"
