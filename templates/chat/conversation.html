@@ -24,37 +24,35 @@
 {% endblock %}
 
 {% block content %}
-<div class="chat-page">
-    <section class="chat-panel">
-        <div class="chat-toolbar">
-            <button type="button" class="btn btn-ghost btn-icon" id="menu-toggle" aria-label="Menu">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-            </button>
-            <span class="chat-toolbar-title">{{ conversation.title|truncatechars:36 }}</span>
+<section class="chat-panel">
+    <div class="chat-toolbar">
+        <button type="button" class="btn btn-ghost btn-icon" id="menu-toggle" aria-label="Menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+        </button>
+        <span class="chat-toolbar-title">{{ conversation.title|truncatechars:36 }}</span>
+    </div>
+    <div class="messages" id="messages">
+        {% if not openrouter_ready %}
+        <div class="flash flash-error">OpenRouter API key is not configured. Add <code>OPENROUTER_API_KEY</code> to your <code>.env</code>.</div>
+        {% endif %}
+        {% if not has_lessons %}
+        <div class="empty-hint">
+            <p>No lessons loaded yet.</p>
+            <p>Open the menu → <strong>Settings</strong> to upload your Kartuli PDFs.</p>
         </div>
-        <div class="messages" id="messages">
-            {% if not openrouter_ready %}
-            <div class="flash flash-error">OpenRouter API key is not configured. Add <code>OPENROUTER_API_KEY</code> to your <code>.env</code>.</div>
-            {% endif %}
-            {% if not has_lessons %}
-            <div class="empty-hint">
-                <p>No lessons loaded yet.</p>
-                <p>Open the menu → <strong>Settings</strong> to upload your Kartuli PDFs.</p>
-            </div>
-            {% endif %}
-            {% for m in messages_list %}
-            {% render_message m %}
-            {% endfor %}
-        </div>
-        <form class="composer" id="composer"
-              data-url="{% url 'chat:send' conversation.pk %}"
-              data-interact-url="{% url 'chat:interact' conversation.pk %}">
-            {% csrf_token %}
-            <textarea id="message-input" name="message" rows="1" required></textarea>
-            <button class="btn" type="submit" id="send-btn">Send</button>
-        </form>
-    </section>
-</div>
+        {% endif %}
+        {% for m in messages_list %}
+        {% render_message m %}
+        {% endfor %}
+    </div>
+    <form class="composer" id="composer"
+          data-url="{% url 'chat:send' conversation.pk %}"
+          data-interact-url="{% url 'chat:interact' conversation.pk %}">
+        {% csrf_token %}
+        <textarea id="message-input" name="message" rows="1" required></textarea>
+        <button class="btn" type="submit" id="send-btn">Send</button>
+    </form>
+</section>
 {% endblock %}
 
 {% block scripts %}

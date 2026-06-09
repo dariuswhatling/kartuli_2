@@ -48,9 +48,10 @@ body {
     min-height: 100%;
 }
 
-/* Chat: full-screen shell; only .messages scrolls (iOS Safari). */
+/* Chat: full-viewport column; only .messages scrolls. */
 body.body--chat {
-    height: 100%;
+    display: flex;
+    flex-direction: column;
     height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
@@ -166,11 +167,11 @@ a:hover { color: var(--accent-hover); }
     padding: 20px 16px 32px;
 }
 .main--chat {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
     max-width: none;
     margin: 0;
     padding: 0;
@@ -512,10 +513,6 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ---- Chat ---- */
-.chat-page {
-    height: 100%;
-    width: 100%;
-}
 .conv-list { display: flex; flex-direction: column; gap: 2px; }
 .conv-item {
     display: block;
@@ -534,23 +531,22 @@ input:focus, select:focus, textarea:focus {
 }
 
 .chat-panel {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
     width: 100%;
-    max-width: 100%;
-    margin: 0;
     background: var(--bg);
 }
 .chat-toolbar {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
     padding: 10px 12px;
     padding-top: max(10px, env(safe-area-inset-top, 0px));
     background: var(--surface);
     border-bottom: 1px solid var(--border-light);
-    z-index: 5;
 }
 .chat-toolbar-title {
     font-weight: 600;
@@ -562,45 +558,45 @@ input:focus, select:focus, textarea:focus {
     text-overflow: ellipsis;
 }
 .messages {
+    flex: 1;
+    min-height: 0;
     overflow-x: hidden;
-    overflow-y: scroll;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    padding: 10px 12px 14px;
-    /* Block layout — avoids iOS flex-stretch bugs on bubbles */
-    display: block;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
 }
 .msg {
-    display: block;
-    width: fit-content;
+    flex: 0 0 auto;
     max-width: 85%;
-    margin: 0 0 10px;
-    padding: 9px 12px;
-    border-radius: 16px;
-    white-space: pre-wrap;
+    padding: 10px 14px;
+    border-radius: 18px;
     word-wrap: break-word;
     overflow-wrap: anywhere;
     font-size: 15px;
-    line-height: 1.4;
+    line-height: 1.45;
     box-shadow: var(--shadow-sm);
 }
 .msg.user {
-    margin-left: auto;
-    margin-right: 0;
+    align-self: flex-end;
     background: var(--accent);
     color: #fff;
-    border-bottom-right-radius: 5px;
-    max-width: 80%;
+    border-bottom-right-radius: 6px;
 }
 .msg.assistant {
-    margin-right: auto;
-    margin-left: 0;
+    align-self: flex-start;
     background: var(--surface);
     border: 1px solid var(--border-light);
-    border-bottom-left-radius: 5px;
-    max-width: 90%;
+    border-bottom-left-radius: 6px;
 }
-.msg-text { margin: 0; }
+.msg-text {
+    margin: 0;
+    white-space: pre-wrap;
+}
 .msg-text + .widget-stack { margin-top: 10px; }
 
 /* ---- Interactive widgets ---- */
@@ -769,10 +765,10 @@ input:focus, select:focus, textarea:focus {
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    padding: 8px 10px max(8px, env(safe-area-inset-bottom, 0px));
+    flex-shrink: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
     background: var(--surface);
     border-top: 1px solid var(--border-light);
-    z-index: 5;
 }
 .composer textarea {
     flex: 1;
@@ -790,6 +786,7 @@ input:focus, select:focus, textarea:focus {
     flex-shrink: 0;
 }
 .empty-hint {
+    align-self: center;
     color: var(--muted);
     text-align: center;
     margin: 24px auto;
@@ -797,6 +794,10 @@ input:focus, select:focus, textarea:focus {
     font-size: 14px;
     line-height: 1.6;
     padding: 12px;
+}
+.messages > .flash {
+    align-self: stretch;
+    width: 100%;
 }
 .empty-hint p { margin: 0 0 8px; }
 
@@ -821,9 +822,7 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
     .settings-card-header { flex-direction: column; align-items: stretch; }
     .settings-card-header .btn { align-self: flex-start; }
     .row-between--lesson-header { flex-direction: column; align-items: flex-start; }
-    .msg { max-width: 88%; padding: 8px 11px; font-size: 14px; }
-    .msg.user { max-width: 82%; }
-    .msg.assistant { max-width: 92%; }
+    .msg { max-width: 90%; }
     .msg.assistant:has(.widget-stack) { max-width: 94%; }
     .widget { padding: 10px; }
     .composer textarea { font-size: 16px; }
