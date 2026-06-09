@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST
 from lessons.models import Lesson
 
 from .agent import generate_reply
-from .models import Conversation, Message, Skill
+from .models import Conversation, Message
 
 
 @login_required
@@ -24,7 +24,6 @@ def home(request):
 def conversation_view(request, pk: int):
     conversation = get_object_or_404(Conversation, pk=pk, user=request.user)
     conversations = Conversation.objects.filter(user=request.user)
-    weak_skills = Skill.objects.filter(user=request.user).order_by("score")[:6]
     has_lessons = Lesson.objects.filter(
         user=request.user, status=Lesson.Status.READY
     ).exists()
@@ -35,7 +34,6 @@ def conversation_view(request, pk: int):
             "conversation": conversation,
             "conversations": conversations,
             "messages_list": conversation.messages.all(),
-            "weak_skills": weak_skills,
             "has_lessons": has_lessons,
             "openrouter_ready": bool(settings.OPENROUTER_API_KEY),
         },
@@ -89,9 +87,3 @@ def delete_conversation(request, pk: int):
     conversation = get_object_or_404(Conversation, pk=pk, user=request.user)
     conversation.delete()
     return redirect("chat:home")
-
-
-@login_required
-def progress(request):
-    skills = Skill.objects.filter(user=request.user).order_by("score")
-    return render(request, "chat/progress.html", {"skills": skills})

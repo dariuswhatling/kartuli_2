@@ -1,4 +1,4 @@
-"""Tutoring agent: scope -> retrieve -> reply -> assess -> adapt."""
+"""Tutoring agent: scope -> retrieve lesson chunks -> reply using Mem0 memory."""
 from __future__ import annotations
 
 import logging
@@ -7,7 +7,7 @@ from accounts.models import get_user_settings
 from core import memory, openrouter
 from core.json_utils import parse_json
 
-from .models import Attempt, Conversation, Message, Skill
+from .models import Conversation, Message
 from .retrieval import retrieve_chunks
 
 logger = logging.getLogger(__name__)
@@ -40,37 +40,44 @@ HARD RULES:
 - When in quiz mode, ask ONE clear question at a time, then wait for the answer.
 - When the student answers, mark it (correct / partly / incorrect), give the
   correct answer briefly, then continue.
-- Adapt to the student's mastery: spend more time on weak areas, less on strong
-  ones, unless the student asked for a specific scope.
+- Adapt like an in-person tutor: use what you remember about THIS student below.
+  Return to their weak spots, skip what they clearly know, notice patterns in
+  their mistakes — unless they asked for a specific narrow scope.
 - Keep Georgian script accurate. Offer transliteration when helpful.
 - Be concise and warm.
 
 SESSION SCOPE: mode={mode}; lessons={lesson_scope}; topics={topic_scope}
 
-WHAT THE STUDENT IS GOOD/BAD AT:
-{mastery}
-
-THINGS TO REMEMBER ABOUT THIS STUDENT:
+WHAT YOU REMEMBER ABOUT THIS STUDENT (from past sessions — adapt using this):
 {memories}
 
 LESSON CONTEXT (the only material you may use):
 {context}
 """
 
-ASSESS_PROMPT = """You are grading a Georgian tutoring exchange to track progress.
+MEMORY_EXTRACT_PROMPT = """You help a Georgian language tutor remember their student over time,
+the way a human tutor would after a lesson.
 
-Assistant's previous message (may contain a question):
+Previous tutor message:
 \"\"\"{assistant}\"\"\"
 
-Student's reply:
+Student's latest message:
 \"\"\"{student}\"\"\"
 
-Lesson topics in scope: {topics}
+Session scope: mode={mode}; lessons={lessons}; topics={topics}
 
-If the student's reply was an ANSWER to a question, assess it. Otherwise set assessed=false.
-Return STRICT JSON:
-{{"assessed": true/false, "topic": "single lowercase topic tag", "lesson_id": null or int,
-  "correctness": 0.0 to 1.0, "note": "one short sentence on what they got right/wrong"}}
+Write 0–3 short memory facts worth keeping for FUTURE sessions. Good memories are
+specific and natural, e.g.:
+- "Struggles with -ება verb endings in lesson 3 conjugation tables"
+- "Confuses dative and genitive cases after ზე and ში"
+- "Strong with basic greetings and numbers"
+- "Prefers romanization alongside Georgian script"
+- "Answered correctly on present-tense dialogue from lesson 2"
+
+Only record real evidence from this exchange (answers, mistakes, things they said
+about what they find hard). Skip filler ("thanks", "ok", "continue").
+
+Return STRICT JSON: {{"memories": ["...", ...]}}
 """
 
 
@@ -103,23 +110,6 @@ def extract_scope(user, message: str, model: str) -> dict:
     return {"mode": mode, "lesson_ids": lesson_ids, "topics": topics}
 
 
-def _mastery_summary(user, lesson_ids: list[int] | None, topics: list[str] | None) -> str:
-    qs = Skill.objects.filter(user=user)
-    if lesson_ids:
-        qs = qs.filter(lesson_id__in=lesson_ids)
-    if topics:
-        qs = qs.filter(topic__in=topics)
-    qs = qs.order_by("score")[:12]
-    if not qs:
-        return "(no quiz history yet)"
-    lines = []
-    for s in qs:
-        level = "weak" if s.score < 0.4 else "ok" if s.score < 0.7 else "strong"
-        scope = s.lesson.title if s.lesson else "all"
-        lines.append(f"- {s.topic} [{scope}]: {level} ({s.score:.2f}, {s.attempts} tries)")
-    return "\n".join(lines)
-
-
 def _context_block(chunks) -> str:
     if not chunks:
         return "(no matching lesson content for this scope)"
@@ -139,6 +129,12 @@ def _history_messages(conversation: Conversation) -> list[dict]:
     return [{"role": m.role, "content": m.content} for m in ordered]
 
 
+def _format_memories(memories: list[str]) -> str:
+    if not memories:
+        return "(no memories yet — this may be a new student, or Mem0 is not configured)"
+    return "\n".join(f"- {m}" for m in memories)
+
+
 def generate_reply(conversation: Conversation, user_message: str) -> Message:
     user = conversation.user
     settings_obj = get_user_settings(user)
@@ -153,8 +149,13 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
         limit=6,
     )
 
-    memories = memory.recall(user.id, user_message, limit=5)
-    mastery = _mastery_summary(user, scope["lesson_ids"] or None, scope["topics"] or None)
+    memories = memory.recall_for_tutoring(
+        user.id,
+        user_message,
+        lesson_ids=scope["lesson_ids"] or None,
+        topics=scope["topics"] or None,
+        mode=scope["mode"],
+    )
 
     lesson_scope = scope["lesson_ids"] or "all"
     topic_scope = scope["topics"] or "any"
@@ -162,8 +163,7 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
         mode=scope["mode"],
         lesson_scope=lesson_scope,
         topic_scope=topic_scope,
-        mastery=mastery,
-        memories="\n".join(f"- {m}" for m in memories) if memories else "(none yet)",
+        memories=_format_memories(memories),
         context=_context_block(chunks),
     )
 
@@ -181,8 +181,7 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
     )
     conversation.save(update_fields=["updated_at"])
 
-    # Assess the student's answer (against the assistant's PREVIOUS question).
-    _assess_and_adapt(conversation, user_message, scope, model)
+    _learn_from_exchange(conversation, user_message, scope, model)
     return assistant_msg
 
 
@@ -195,9 +194,10 @@ def _previous_assistant_message(conversation: Conversation) -> str:
     return prev.content if prev else ""
 
 
-def _assess_and_adapt(conversation, user_message, scope, model) -> None:
-    prior_question = _previous_assistant_message(conversation)
-    if not prior_question:
+def _learn_from_exchange(conversation, user_message, scope, model) -> None:
+    """Extract tutor memories from the latest student turn and store in Mem0."""
+    prior = _previous_assistant_message(conversation)
+    if not prior:
         return
     try:
         raw = openrouter.chat(
@@ -205,50 +205,34 @@ def _assess_and_adapt(conversation, user_message, scope, model) -> None:
             [
                 {
                     "role": "user",
-                    "content": ASSESS_PROMPT.format(
-                        assistant=prior_question[:1500],
-                        student=user_message[:1500],
+                    "content": MEMORY_EXTRACT_PROMPT.format(
+                        assistant=prior[:2000],
+                        student=user_message[:2000],
+                        mode=scope["mode"],
+                        lessons=scope["lesson_ids"] or "all",
                         topics=", ".join(scope["topics"]) or "any",
                     ),
                 }
             ],
-            temperature=0.0,
-            max_tokens=250,
+            temperature=0.1,
+            max_tokens=400,
         )
         data = parse_json(raw)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Assessment failed: %s", exc)
+        logger.warning("Memory extraction failed: %s", exc)
         return
 
-    if not data.get("assessed"):
+    items = data.get("memories") or []
+    if not isinstance(items, list):
         return
 
-    topic = str(data.get("topic") or "general").lower()[:120]
-    correctness = float(data.get("correctness") or 0.0)
-    note = str(data.get("note") or "")[:500]
-    lesson_id = data.get("lesson_id")
-    lesson = None
-    if isinstance(lesson_id, int):
-        from lessons.models import Lesson
-
-        lesson = Lesson.objects.filter(pk=lesson_id, user=conversation.user).first()
-
-    skill, _ = Skill.objects.get_or_create(
-        user=conversation.user, lesson=lesson, topic=topic
-    )
-    skill.register_attempt(correctness)
-    Attempt.objects.create(
-        user=conversation.user,
-        skill=skill,
-        question=prior_question[:2000],
-        answer=user_message[:2000],
-        correctness=correctness,
-        note=note,
-    )
-
-    verdict = "got right" if correctness >= 0.7 else "partly knew" if correctness >= 0.4 else "struggled with"
-    memory.add_interaction(
+    meta = {
+        "mode": scope["mode"],
+        "lesson_ids": scope["lesson_ids"],
+        "topics": scope["topics"],
+    }
+    memory.remember_many(
         conversation.user.id,
-        f"Student {verdict} '{topic}': {note}",
-        metadata={"topic": topic, "correctness": correctness},
+        [str(m).strip() for m in items if str(m).strip()],
+        metadata=meta,
     )

@@ -14,7 +14,6 @@
         {% if user.is_authenticated %}
         <nav class="topnav">
             <a href="{% url 'chat:home' %}">Chat</a>
-            <a href="{% url 'chat:progress' %}">Progress</a>
             <a href="{% url 'accounts:settings' %}">Settings</a>
             <form action="{% url 'accounts:logout' %}" method="post" class="inline">
                 {% csrf_token %}
