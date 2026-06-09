@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Sign up · Kartuli Tutor{% endblock %}
+{% block main_class %}main--auth{% endblock %}
 {% block content %}
 <div class="auth-wrap">
     <div class="card">
         <h1>Create your account</h1>
+        <p class="auth-subtitle">Pick any name and password to get started.</p>
         <form method="post">
             {% csrf_token %}
             <div class="field">
@@ -19,7 +21,7 @@
             {% if form.non_field_errors %}
             <div class="flash flash-error">{{ form.non_field_errors|striptags }}</div>
             {% endif %}
-            <button class="btn" type="submit" style="width:100%">Sign up</button>
+            <button class="btn btn-block" type="submit">Sign up</button>
         </form>
         <p class="auth-alt muted">Already have an account? <a href="{% url 'accounts:login' %}">Log in</a></p>
     </div>

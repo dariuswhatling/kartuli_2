@@ -1,96 +1,117 @@
 {% extends "base.html" %}
 {% block title %}Settings · Kartuli Tutor{% endblock %}
 {% block content %}
-<h1 style="font-size:22px;margin-top:0">Settings</h1>
-
-<div class="card">
-    <div class="row-between">
-        <h2>Models</h2>
-        <a class="btn btn-ghost btn-sm" href="?refresh=1">Refresh model list</a>
-    </div>
-    {% if not models_available %}
-    <div class="flash flash-error">
-        Could not load models from OpenRouter. Check that <code>OPENROUTER_API_KEY</code> is set in your <code>.env</code>,
-        then refresh. You can still type a model id manually below.
-    </div>
-    {% endif %}
-    <form method="post">
-        {% csrf_token %}
-        <div class="grid-2">
-            <div class="field">
-                <label for="chat_model">Chat / tutoring model</label>
-                {% if models_available %}
-                <select name="chat_model" id="chat_model">
-                    {% for m in models %}
-                    <option value="{{ m.id }}" {% if m.id == user_settings.chat_model %}selected{% endif %}>{{ m.name }}</option>
-                    {% endfor %}
-                </select>
-                {% else %}
-                <input type="text" name="chat_model" id="chat_model" value="{{ user_settings.chat_model }}">
-                {% endif %}
-                <div class="small muted">Used for the tutoring conversation.</div>
-            </div>
-            <div class="field">
-                <label for="parser_model">PDF parsing / categorising model</label>
-                {% if models_available %}
-                <select name="parser_model" id="parser_model">
-                    {% for m in models %}
-                    <option value="{{ m.id }}" {% if m.id == user_settings.parser_model %}selected{% endif %}>{{ m.name }}</option>
-                    {% endfor %}
-                </select>
-                {% else %}
-                <input type="text" name="parser_model" id="parser_model" value="{{ user_settings.parser_model }}">
-                {% endif %}
-                <div class="small muted">Reads uploaded PDFs and tags them by topic.</div>
-            </div>
-        </div>
-        <button class="btn" type="submit">Save models</button>
-    </form>
+<div class="page-header">
+    <h1>Settings</h1>
+    <p>Choose your AI models and manage lesson PDFs.</p>
 </div>
 
-<div class="card">
-    <h2>Upload lessons (PDF)</h2>
-    <p class="muted small">Each PDF is parsed in the background, split into study chunks, and tagged so the tutor can pull only what you ask for.</p>
-    <form method="post" action="{% url 'lessons:upload' %}" enctype="multipart/form-data">
-        {% csrf_token %}
-        <div class="field">
-            <input type="file" name="pdfs" accept="application/pdf" multiple required>
+<div class="settings-stack">
+    <div class="card">
+        <div class="settings-card-header">
+            <div>
+                <h2>AI models</h2>
+                <p class="card-desc" style="margin:0">Pick which OpenRouter models power chat and PDF parsing.</p>
+            </div>
+            <a class="btn btn-ghost btn-sm" href="?refresh=1">Refresh list</a>
         </div>
-        <button class="btn" type="submit">Upload &amp; parse</button>
-    </form>
-</div>
-
-<div class="card">
-    <div class="row-between">
-        <h2>Your lessons</h2>
-        <span class="muted small">{{ lessons|length }} total</span>
+        {% if not models_available %}
+        <div class="flash flash-error">
+            Could not load models from OpenRouter. Check that <code>OPENROUTER_API_KEY</code> is set in your <code>.env</code>,
+            then refresh. You can still type a model id manually below.
+        </div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="grid-2">
+                <div class="field">
+                    <label for="chat_model">Chat / tutoring model</label>
+                    {% if models_available %}
+                    <select name="chat_model" id="chat_model">
+                        {% for m in models %}
+                        <option value="{{ m.id }}" {% if m.id == user_settings.chat_model %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" name="chat_model" id="chat_model" value="{{ user_settings.chat_model }}">
+                    {% endif %}
+                    <div class="field-hint">Used for the tutoring conversation.</div>
+                </div>
+                <div class="field">
+                    <label for="parser_model">PDF parsing / categorising model</label>
+                    {% if models_available %}
+                    <select name="parser_model" id="parser_model">
+                        {% for m in models %}
+                        <option value="{{ m.id }}" {% if m.id == user_settings.parser_model %}selected{% endif %}>{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" name="parser_model" id="parser_model" value="{{ user_settings.parser_model }}">
+                    {% endif %}
+                    <div class="field-hint">Reads uploaded PDFs and tags them by topic.</div>
+                </div>
+            </div>
+            <button class="btn" type="submit">Save models</button>
+        </form>
     </div>
-    {% if lessons %}
-    <table>
-        <thead>
-            <tr><th>Title</th><th>Status</th><th>Topics</th><th>Chunks</th><th></th></tr>
-        </thead>
-        <tbody>
+
+    <div class="card">
+        <h2>Upload lessons</h2>
+        <p class="card-desc">Each PDF is parsed in the background, split into study chunks, and tagged so the tutor can pull only what you ask for.</p>
+        <form method="post" action="{% url 'lessons:upload' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="upload-zone" id="upload-zone">
+                <input type="file" name="pdfs" id="pdf-input" accept="application/pdf" multiple required>
+                <div class="upload-icon">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <div class="upload-title">Tap to choose PDFs</div>
+                <div class="upload-hint">One or more lesson files · parsed automatically</div>
+                <div class="upload-filename" id="upload-filename" hidden></div>
+            </div>
+            <button class="btn btn-block" type="submit" style="margin-top:14px">Upload &amp; parse</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="settings-card-header">
+            <h2>Your lessons</h2>
+            <span class="lesson-count">{{ lessons|length }} total</span>
+        </div>
+        {% if lessons %}
+        <div class="lesson-list">
             {% for lesson in lessons %}
-            <tr>
-                <td><a href="{% url 'lessons:detail' lesson.pk %}">{{ lesson.title }}</a></td>
-                <td><span class="status {{ lesson.status }}">{{ lesson.get_status_display }}</span>
-                    {% if lesson.status == 'failed' %}<div class="small muted">{{ lesson.error }}</div>{% endif %}
-                </td>
-                <td>{% for t in lesson.topics %}<span class="pill">{{ t }}</span>{% empty %}<span class="muted small">—</span>{% endfor %}</td>
-                <td>{{ lesson.chunk_count }}</td>
-                <td>
-                    <div style="display:flex;gap:6px">
-                        <form method="post" action="{% url 'lessons:reprocess' lesson.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm">Re-parse</button></form>
-                        <form method="post" action="{% url 'lessons:delete' lesson.pk %}" onsubmit="return confirm('Delete this lesson?')">{% csrf_token %}<button class="btn btn-danger btn-sm">Delete</button></form>
-                    </div>
-                </td>
-            </tr>
+            <div class="lesson-card">
+                <div class="lesson-card-top">
+                    <a class="lesson-card-title" href="{% url 'lessons:detail' lesson.pk %}">{{ lesson.title }}</a>
+                    <span class="status {{ lesson.status }}">{{ lesson.get_status_display }}</span>
+                </div>
+                <div class="lesson-card-meta">
+                    <span>{{ lesson.chunk_count }} chunk{{ lesson.chunk_count|pluralize }}</span>
+                </div>
+                {% if lesson.topics %}
+                <div class="lesson-card-topics">
+                    {% for t in lesson.topics %}<span class="pill">{{ t }}</span>{% endfor %}
+                </div>
+                {% endif %}
+                {% if lesson.status == 'failed' %}
+                <div class="lesson-card-error">{{ lesson.error }}</div>
+                {% endif %}
+                <div class="lesson-card-actions">
+                    <form method="post" action="{% url 'lessons:reprocess' lesson.pk %}">{% csrf_token %}<button class="btn btn-ghost btn-sm" type="submit">Re-parse</button></form>
+                    <form method="post" action="{% url 'lessons:delete' lesson.pk %}" onsubmit="return confirm('Delete this lesson?')">{% csrf_token %}<button class="btn btn-danger btn-sm" type="submit">Delete</button></form>
+                </div>
+            </div>
             {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p class="muted">No lessons yet. Upload a PDF above to get started.</p>
-    {% endif %}
+        </div>
+        {% else %}
+        <div class="empty-state">No lessons yet. Upload a PDF above to get started.</div>
+        {% endif %}
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'js/settings.js' %}"></script>
 {% endblock %}

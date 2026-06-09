@@ -1,46 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Chat · Kartuli Tutor{% endblock %}
+{% block main_class %}main--chat{% endblock %}
 {% block content %}
-<div class="chat-shell">
-    <aside class="sidebar">
+<div class="chat-page">
+    <div class="sessions-backdrop" id="sessions-backdrop"></div>
+    <aside class="sessions-drawer" id="sessions-drawer" aria-label="Sessions">
         <form method="post" action="{% url 'chat:new_conversation' %}">
             {% csrf_token %}
-            <button class="btn" type="submit" style="width:100%">+ New session</button>
+            <button class="btn btn-block" type="submit">+ New session</button>
         </form>
-
-        <div class="card" style="padding:14px">
-            <div class="muted small" style="margin-bottom:8px">Sessions</div>
+        <div style="margin-top:16px">
+            <div class="sidebar-title" style="margin-bottom:8px">Sessions</div>
             <div class="conv-list">
                 {% for c in conversations %}
                 <a class="conv-item {% if c.pk == conversation.pk %}active{% endif %}" href="{% url 'chat:conversation' c.pk %}">
-                    <span>{{ c.title|truncatechars:24 }}</span>
+                    {{ c.title|truncatechars:28 }}
                 </a>
                 {% endfor %}
             </div>
         </div>
     </aside>
 
-    <section class="chat-panel">
-        <div class="messages" id="messages">
-            {% if not openrouter_ready %}
-            <div class="flash flash-error">OpenRouter API key is not configured. Add <code>OPENROUTER_API_KEY</code> to your <code>.env</code>.</div>
-            {% endif %}
-            {% if not has_lessons %}
-            <div class="empty-hint">
-                <p>No lessons loaded yet.</p>
-                <p>Go to <a href="{% url 'accounts:settings' %}">Settings</a> to upload your Kartuli PDFs, then come back and say things like <em>“quiz me on verbs from lesson 3”</em>.</p>
+    <div class="chat-shell">
+        <aside class="sidebar">
+            <form method="post" action="{% url 'chat:new_conversation' %}">
+                {% csrf_token %}
+                <button class="btn btn-block" type="submit">+ New session</button>
+            </form>
+            <div>
+                <div class="sidebar-title" style="margin-bottom:8px">Sessions</div>
+                <div class="conv-list">
+                    {% for c in conversations %}
+                    <a class="conv-item {% if c.pk == conversation.pk %}active{% endif %}" href="{% url 'chat:conversation' c.pk %}">
+                        {{ c.title|truncatechars:28 }}
+                    </a>
+                    {% endfor %}
+                </div>
             </div>
-            {% endif %}
-            {% for m in messages_list %}
-            <div class="msg {{ m.role }}">{{ m.content }}</div>
-            {% endfor %}
-        </div>
-        <form class="composer" id="composer" data-url="{% url 'chat:send' conversation.pk %}">
-            {% csrf_token %}
-            <textarea id="message-input" name="message" placeholder="Ask to be quizzed, or to go over a specific lesson or topic…" required></textarea>
-            <button class="btn" type="submit" id="send-btn">Send</button>
-        </form>
-    </section>
+        </aside>
+
+        <section class="chat-panel">
+            <div class="chat-toolbar">
+                <button type="button" class="btn btn-ghost btn-icon" id="sessions-toggle" aria-label="Sessions">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+                </button>
+                <span class="chat-toolbar-title">{{ conversation.title|truncatechars:32 }}</span>
+                <form method="post" action="{% url 'chat:new_conversation' %}">
+                    {% csrf_token %}
+                    <button class="btn btn-ghost btn-sm" type="submit">New</button>
+                </form>
+            </div>
+            <div class="messages" id="messages">
+                {% if not openrouter_ready %}
+                <div class="flash flash-error">OpenRouter API key is not configured. Add <code>OPENROUTER_API_KEY</code> to your <code>.env</code>.</div>
+                {% endif %}
+                {% if not has_lessons %}
+                <div class="empty-hint">
+                    <p>No lessons loaded yet.</p>
+                    <p>Go to <a href="{% url 'accounts:settings' %}">Settings</a> to upload your Kartuli PDFs, then come back and say things like <em>“quiz me on verbs from lesson 3”</em>.</p>
+                </div>
+                {% endif %}
+                {% for m in messages_list %}
+                <div class="msg {{ m.role }}">{{ m.content }}</div>
+                {% endfor %}
+            </div>
+            <form class="composer" id="composer" data-url="{% url 'chat:send' conversation.pk %}">
+                {% csrf_token %}
+                <textarea id="message-input" name="message" rows="1" placeholder="Ask to be quizzed, or go over a lesson…" required></textarea>
+                <button class="btn" type="submit" id="send-btn">Send</button>
+            </form>
+        </section>
+    </div>
 </div>
 {% endblock %}
 

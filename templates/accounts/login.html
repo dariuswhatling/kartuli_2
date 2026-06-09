@@ -1,9 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Log in · Kartuli Tutor{% endblock %}
+{% block main_class %}main--auth{% endblock %}
 {% block content %}
 <div class="auth-wrap">
     <div class="card">
         <h1>Welcome back</h1>
+        <p class="auth-subtitle">Sign in to continue learning Georgian.</p>
         {% if form.errors %}
         <div class="flash flash-error">Invalid name or password.</div>
         {% endif %}
@@ -17,7 +19,7 @@
                 <label for="id_password">Password</label>
                 {{ form.password }}
             </div>
-            <button class="btn" type="submit" style="width:100%">Log in</button>
+            <button class="btn btn-block" type="submit">Log in</button>
         </form>
         <p class="auth-alt muted">No account? <a href="{% url 'accounts:signup' %}">Sign up</a></p>
     </div>

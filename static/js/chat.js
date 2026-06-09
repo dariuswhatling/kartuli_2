@@ -1,19 +1,51 @@
 (function () {
-    const composer = document.getElementById("composer");
-    const input = document.getElementById("message-input");
-    const messages = document.getElementById("messages");
-    const sendBtn = document.getElementById("send-btn");
+    var composer = document.getElementById("composer");
+    var input = document.getElementById("message-input");
+    var messages = document.getElementById("messages");
+    var sendBtn = document.getElementById("send-btn");
     if (!composer) return;
 
-    const csrf = composer.querySelector("[name=csrfmiddlewaretoken]").value;
-    const url = composer.dataset.url;
+    var csrf = composer.querySelector("[name=csrfmiddlewaretoken]").value;
+    var url = composer.dataset.url;
+
+    /* Sessions drawer (mobile) */
+    var toggle = document.getElementById("sessions-toggle");
+    var drawer = document.getElementById("sessions-drawer");
+    var backdrop = document.getElementById("sessions-backdrop");
+
+    function closeDrawer() {
+        if (drawer) drawer.classList.remove("open");
+        if (backdrop) backdrop.classList.remove("open");
+        document.body.style.overflow = "";
+    }
+
+    function openDrawer() {
+        if (drawer) drawer.classList.add("open");
+        if (backdrop) backdrop.classList.add("open");
+        document.body.style.overflow = "hidden";
+    }
+
+    if (toggle) {
+        toggle.addEventListener("click", function () {
+            if (drawer && drawer.classList.contains("open")) closeDrawer();
+            else openDrawer();
+        });
+    }
+    if (backdrop) backdrop.addEventListener("click", closeDrawer);
+
+    /* Auto-resize textarea */
+    function resizeInput() {
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 120) + "px";
+    }
+    input.addEventListener("input", resizeInput);
 
     function scrollDown() {
         messages.scrollTop = messages.scrollHeight;
     }
 
     function addMessage(role, text) {
-        const div = document.createElement("div");
+        var div = document.createElement("div");
         div.className = "msg " + role;
         div.textContent = text;
         messages.appendChild(div);
@@ -32,25 +64,25 @@
 
     composer.addEventListener("submit", async function (e) {
         e.preventDefault();
-        const text = input.value.trim();
+        var text = input.value.trim();
         if (!text) return;
 
         addMessage("user", text);
         input.value = "";
+        resizeInput();
         input.disabled = true;
         sendBtn.disabled = true;
-        const thinking = addMessage("assistant", "…");
+        var thinking = addMessage("assistant", "…");
 
         try {
-            const resp = await fetch(url, {
+            var resp = await fetch(url, {
                 method: "POST",
                 headers: { "X-CSRFToken": csrf },
                 body: new URLSearchParams({ message: text }),
             });
-            const data = await resp.json();
+            var data = await resp.json();
             if (data.error) {
                 thinking.textContent = "⚠ " + data.error;
-                thinking.classList.add("bad");
             } else {
                 thinking.textContent = data.assistant.content;
             }
