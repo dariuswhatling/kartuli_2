@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load chat_tags %}
 {% block title %}Chat · Kartuli Tutor{% endblock %}
 {% block main_class %}main--chat{% endblock %}
 {% block content %}
@@ -61,12 +62,14 @@
                 </div>
                 {% endif %}
                 {% for m in messages_list %}
-                <div class="msg {{ m.role }}">{{ m.content }}</div>
+                {% render_message m %}
                 {% endfor %}
             </div>
-            <form class="composer" id="composer" data-url="{% url 'chat:send' conversation.pk %}">
+            <form class="composer" id="composer"
+                  data-url="{% url 'chat:send' conversation.pk %}"
+                  data-interact-url="{% url 'chat:interact' conversation.pk %}">
                 {% csrf_token %}
-                <textarea id="message-input" name="message" rows="1" placeholder="Ask to be quizzed, or go over a lesson…" required></textarea>
+                <textarea id="message-input" name="message" rows="1" placeholder="Ask to be quizzed, flashcards, multiple choice…" required></textarea>
                 <button class="btn" type="submit" id="send-btn">Send</button>
             </form>
         </section>

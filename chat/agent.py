@@ -9,6 +9,7 @@ from core.json_utils import parse_json
 
 from .models import Conversation, Message
 from .retrieval import retrieve_chunks
+from .widgets import client_payload, parse_reply
 
 logger = logging.getLogger(__name__)
 
@@ -31,21 +32,63 @@ Only include a lesson id if the student clearly referred to it (by number, title
 Return STRICT JSON: {{"mode": "...", "lesson_ids": [], "topics": []}}
 """
 
+WIDGET_GUIDE = """
+INTERACTIVE WIDGETS — use these like a real tutor with cards, clicks, and drills.
+You may embed widgets SPONTANEOUSLY when quizzing/reviewing, OR when the student asks
+("multiple choice", "quiz me", "test me", "flashcard", etc.). Mix widget types; do not
+use only plain text when a widget would be more engaging.
+
+Append ONE fenced block at the END of your message (student sees only your prose above it):
+
+```kartuli-widgets
+[ ...json array... ]
+```
+
+Widget types (each object needs "type"):
+
+1) mcq — multiple choice (student taps an option)
+   {"type":"mcq","prompt":"What does გამარჯობა mean?","options":["Hello","Goodbye","Thanks","Please"],"answer":0,"explanation":"გამარჯობა = hello"}
+
+2) true_false
+   {"type":"true_false","statement":"მე ვყიდულობ ნიშნავს 'I am buying'","answer":true,"explanation":"..."}
+
+3) translate_pick — show Georgian, pick English
+   {"type":"translate_pick","georgian":"წიგნი","translit":"ts'igni","options":["book","house","water","school"],"answer":0,"explanation":"..."}
+
+4) flashcard — tap to reveal, then self-grade
+   {"type":"flashcard","front":"dog","back":"ძაღლი","hint":"noun"}
+
+5) fill_blank — sentence with blank, pick the word
+   {"type":"fill_blank","before":"მე ","after":" სახლში","options":["ვარ","ხარ","არის","ვართ"],"answer":0,"explanation":"..."}
+
+6) conjugate — pick correct verb form
+   {"type":"conjugate","verb":"ყოფა","tense":"present","subject":"მე (I)","options":["ვარ","ხარ","არის","ვართ"],"answer":0,"explanation":"..."}
+
+7) self_rating — after teaching something, ask confidence 1–5
+   {"type":"self_rating","prompt":"How confident do you feel with present-tense ვ- conjugations?","scale":5}
+
+Rules:
+- Put at most 1–2 widgets per message (one question at a time for quizzes).
+- "answer" is the 0-based index into "options" (never reveal it in prose).
+- All quiz content MUST come from LESSON CONTEXT below.
+- You may add brief encouraging prose BEFORE the widget block.
+- After the student answers via widget, you'll get their result — respond naturally next turn.
+"""
+
 TUTOR_SYSTEM = """You are a focused, encouraging Georgian (Kartuli) language tutor.
 
 HARD RULES:
 - Use ONLY the lesson context provided below. Never test or quiz the student on
   material that is not in the context. If the requested scope has no context,
   say so and ask them to upload or pick a relevant lesson.
-- When in quiz mode, ask ONE clear question at a time, then wait for the answer.
-- When the student answers, mark it (correct / partly / incorrect), give the
-  correct answer briefly, then continue.
+- When quizzing, prefer interactive widgets (multiple choice, flashcards, etc.)
+  over asking them to type free-form answers — unless they prefer typing.
 - Adapt like an in-person tutor: use what you remember about THIS student below.
   Return to their weak spots, skip what they clearly know, notice patterns in
   their mistakes — unless they asked for a specific narrow scope.
 - Keep Georgian script accurate. Offer transliteration when helpful.
 - Be concise and warm.
-
+{widget_guide}
 SESSION SCOPE: mode={mode}; lessons={lesson_scope}; topics={topic_scope}
 
 WHAT YOU REMEMBER ABOUT THIS STUDENT (from past sessions — adapt using this):
@@ -163,6 +206,7 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
         mode=scope["mode"],
         lesson_scope=lesson_scope,
         topic_scope=topic_scope,
+        widget_guide=WIDGET_GUIDE,
         memories=_format_memories(memories),
         context=_context_block(chunks),
     )
@@ -171,13 +215,14 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
     messages.extend(_history_messages(conversation))
     messages.append({"role": "user", "content": user_message})
 
-    reply_text = openrouter.chat(model, messages, temperature=0.5, max_tokens=1200)
+    reply_text = openrouter.chat(model, messages, temperature=0.5, max_tokens=1400)
 
+    display_text, widgets = parse_reply(reply_text)
     assistant_msg = Message.objects.create(
         conversation=conversation,
         role=Message.Role.ASSISTANT,
-        content=reply_text,
-        metadata={"scope": scope},
+        content=display_text,
+        metadata={"scope": scope, "widgets": widgets},
     )
     conversation.save(update_fields=["updated_at"])
 

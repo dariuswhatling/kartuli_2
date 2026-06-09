@@ -567,7 +567,164 @@ input:focus, select:focus, textarea:focus {
     background: var(--surface);
     border: 1px solid var(--border-light);
     border-bottom-left-radius: 6px;
+    max-width: 92%;
 }
+.msg-text { margin-bottom: 0; }
+.msg-text + .widget-stack { margin-top: 12px; }
+
+/* ---- Interactive widgets ---- */
+.widget-stack { display: flex; flex-direction: column; gap: 10px; }
+.widget {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+}
+.widget-type {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--accent);
+    margin-bottom: 8px;
+}
+.widget-prompt {
+    font-weight: 600;
+    font-size: 15px;
+    line-height: 1.45;
+    margin-bottom: 12px;
+}
+.widget-georgian {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+.widget-translit {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+.widget-blank {
+    font-size: 17px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+.widget-blank-gap {
+    display: inline-block;
+    min-width: 60px;
+    border-bottom: 2px solid var(--accent-muted);
+    margin: 0 4px;
+    color: var(--accent);
+    font-weight: 600;
+}
+.widget-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 10px;
+}
+.widget-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.widget-opt {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    font: inherit;
+    font-size: 15px;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s, transform 0.1s;
+    min-height: 44px;
+    touch-action: manipulation;
+}
+.widget-opt:hover:not(:disabled) {
+    border-color: var(--accent-muted);
+    background: var(--accent-soft);
+}
+.widget-opt:active:not(:disabled) { transform: scale(0.98); }
+.widget-opt:disabled { cursor: default; opacity: 0.85; }
+.widget-opt.correct {
+    border-color: #86efac;
+    background: var(--good-bg);
+    color: var(--good);
+    font-weight: 600;
+}
+.widget-opt.wrong {
+    border-color: #fca5a5;
+    background: var(--bad-bg);
+    color: var(--bad);
+}
+.widget-opt.missed {
+    border-color: #86efac;
+    background: var(--good-bg);
+    color: var(--good);
+    font-weight: 600;
+    opacity: 1;
+}
+.widget-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.widget-row .widget-opt { flex: 1; min-width: 100px; text-align: center; }
+.widget-feedback {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 14px;
+    line-height: 1.45;
+}
+.widget-feedback.ok { background: var(--good-bg); color: #166534; border: 1px solid #bbf7d0; }
+.widget-feedback.no { background: var(--bad-bg); color: #991b1b; border: 1px solid #fecaca; }
+.widget-feedback.neutral { background: var(--accent-soft); color: var(--text); border: 1px solid var(--border); }
+
+.widget-flashcard {
+    text-align: center;
+    padding: 20px 16px;
+}
+.widget-flashcard-front {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.widget-flashcard-back {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    margin: 12px 0;
+    padding: 12px;
+    background: var(--surface);
+    border-radius: var(--radius-sm);
+}
+.widget-rating {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+}
+.widget-rating button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.widget-rating button:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+.widget-rating button:disabled { opacity: 0.6; }
 .composer {
     display: flex;
     align-items: flex-end;
