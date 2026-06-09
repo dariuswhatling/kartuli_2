@@ -6,10 +6,11 @@ import logging
 from accounts.models import get_user_settings
 from core import memory, openrouter
 from core.json_utils import parse_json
+from core.openrouter import OpenRouterError
 
 from .models import Conversation, Message
 from .retrieval import retrieve_chunks
-from .widgets import client_payload, parse_reply
+from .widgets import WIDGET_TOOLS, _normalize_widget, parse_reply, widgets_from_tool_calls
 
 logger = logging.getLogger(__name__)
 
@@ -32,47 +33,26 @@ Only include a lesson id if the student clearly referred to it (by number, title
 Return STRICT JSON: {{"mode": "...", "lesson_ids": [], "topics": []}}
 """
 
-WIDGET_GUIDE = """
-INTERACTIVE WIDGETS — use these like a real tutor with cards, clicks, and drills.
-You may embed widgets SPONTANEOUSLY when quizzing/reviewing, OR when the student asks
-("multiple choice", "quiz me", "test me", "flashcard", etc.). Mix widget types; do not
-use only plain text when a widget would be more engaging.
+TOOL_GUIDE = """
+INTERACTIVE TOOLS — you MUST use these when quizzing, reviewing, or when the student asks
+to be tested ("quiz me", "multiple choice", "flashcard", "test me", etc.).
 
-Append ONE fenced block at the END of your message (student sees only your prose above it):
-
-```kartuli-widgets
-[ ...json array... ]
-```
-
-Widget types (each object needs "type"):
-
-1) mcq — multiple choice (student taps an option)
-   {"type":"mcq","prompt":"What does გამარჯობა mean?","options":["Hello","Goodbye","Thanks","Please"],"answer":0,"explanation":"გამარჯობა = hello"}
-
-2) true_false
-   {"type":"true_false","statement":"მე ვყიდულობ ნიშნავს 'I am buying'","answer":true,"explanation":"..."}
-
-3) translate_pick — show Georgian, pick English
-   {"type":"translate_pick","georgian":"წიგნი","translit":"ts'igni","options":["book","house","water","school"],"answer":0,"explanation":"..."}
-
-4) flashcard — tap to reveal, then self-grade
-   {"type":"flashcard","front":"dog","back":"ძაღლი","hint":"noun"}
-
-5) fill_blank — sentence with blank, pick the word
-   {"type":"fill_blank","before":"მე ","after":" სახლში","options":["ვარ","ხარ","არის","ვართ"],"answer":0,"explanation":"..."}
-
-6) conjugate — pick correct verb form
-   {"type":"conjugate","verb":"ყოფა","tense":"present","subject":"მე (I)","options":["ვარ","ხარ","არის","ვართ"],"answer":0,"explanation":"..."}
-
-7) self_rating — after teaching something, ask confidence 1–5
-   {"type":"self_rating","prompt":"How confident do you feel with present-tense ვ- conjugations?","scale":5}
+Call one or two tool functions to show interactive cards in the chat UI:
+- show_mcq — multiple choice (tap an option)
+- show_true_false — true/false statement
+- show_translate_pick — Georgian word/phrase, pick English translation
+- show_flashcard — tap to reveal, then self-grade
+- show_fill_blank — sentence with blank, pick the word
+- show_conjugate — pick the correct verb form
+- show_self_rating — confidence rating 1–5 after teaching
 
 Rules:
-- Put at most 1–2 widgets per message (one question at a time for quizzes).
-- "answer" is the 0-based index into "options" (never reveal it in prose).
+- When testing, ALWAYS call at least one tool. Plain-text quizzes are not allowed.
+- Put at most 1–2 tools per turn (one question at a time).
 - All quiz content MUST come from LESSON CONTEXT below.
-- Keep prose before the widget minimal and instructional — no filler.
-- After the student answers via widget, continue the lesson; do not ask what they want next.
+- Write brief instructional prose in your message AND call the tool(s).
+- Never reveal correct answers in prose — only in tool arguments.
+- After the student answers via a widget, continue the lesson; do not ask what they want next.
 """
 
 TUTOR_SYSTEM = """You are a professional Georgian (Kartuli) language tutor in an ongoing
@@ -92,11 +72,10 @@ TEACHING STYLE:
 HARD RULES:
 - Use ONLY the lesson context below. Never quiz on material outside it. If scope has no
   context, say so briefly and direct them to upload a lesson via Settings.
-- When testing, prefer interactive widgets (multiple choice, flashcards, etc.) over
-  free-text answers unless typing practice is the point.
+- When testing or reviewing, you MUST call the interactive tools described below.
 - Use what you remember about THIS student to prioritise weak areas and skip mastered
   material — unless they narrowed the scope.
-{widget_guide}
+{tool_guide}
 SESSION SCOPE: mode={mode}; lessons={lesson_scope}; topics={topic_scope}
 
 WHAT YOU REMEMBER ABOUT THIS STUDENT (from past sessions — adapt using this):
@@ -104,6 +83,33 @@ WHAT YOU REMEMBER ABOUT THIS STUDENT (from past sessions — adapt using this):
 
 LESSON CONTEXT (the only material you may use):
 {context}
+"""
+
+WIDGET_SYNTH_PROMPT = """You build ONE interactive tutoring widget for a Georgian lesson.
+
+Student said:
+\"\"\"{student}\"\"\"
+
+Tutor is about to show:
+\"\"\"{assistant}\"\"\"
+
+Session mode: {mode}
+Lesson context:
+{context}
+
+Return STRICT JSON with a single widget object. Pick the best type for this moment.
+Supported types and fields:
+
+mcq: {{"type":"mcq","prompt":"...","options":["..."],"answer":0,"explanation":"..."}}
+true_false: {{"type":"true_false","statement":"...","answer":true,"explanation":"..."}}
+translate_pick: {{"type":"translate_pick","georgian":"...","translit":"...","options":["..."],"answer":0,"explanation":"..."}}
+flashcard: {{"type":"flashcard","front":"...","back":"...","hint":"..."}}
+fill_blank: {{"type":"fill_blank","before":"...","after":"...","options":["..."],"answer":0,"explanation":"..."}}
+conjugate: {{"type":"conjugate","verb":"...","tense":"...","subject":"...","options":["..."],"answer":0,"explanation":"..."}}
+self_rating: {{"type":"self_rating","prompt":"...","scale":5}}
+
+Content MUST come from the lesson context. "answer" is 0-based index into "options".
+Return: {{"widget": {{ ... }} }}
 """
 
 MEMORY_EXTRACT_PROMPT = """You help a Georgian language tutor remember their student over time,
@@ -186,6 +192,93 @@ def _format_memories(memories: list[str]) -> str:
     return "\n".join(f"- {m}" for m in memories)
 
 
+def _wants_interactive(message: str, scope: dict) -> bool:
+    if scope.get("mode") in {"quiz", "review"}:
+        return True
+    lowered = message.lower()
+    triggers = (
+        "quiz",
+        "test me",
+        "multiple choice",
+        "flashcard",
+        "flash card",
+        "mcq",
+        "drill",
+        "practice",
+        "true or false",
+        "true/false",
+    )
+    return any(t in lowered for t in triggers)
+
+
+def _run_tutor(
+    model: str,
+    messages: list[dict],
+    *,
+    force_tools: bool,
+) -> tuple[str, list[dict]]:
+    """Call the tutor model; prefer tool calls for widgets."""
+    tool_choice = "required" if force_tools else "auto"
+    try:
+        result = openrouter.chat_completion(
+            model,
+            messages,
+            temperature=0.5,
+            max_tokens=1400,
+            tools=WIDGET_TOOLS,
+            tool_choice=tool_choice,
+        )
+        widgets = widgets_from_tool_calls(result.tool_calls)
+        display = result.content
+        if not widgets and display:
+            display, md_widgets = parse_reply(display)
+            widgets = md_widgets
+        return display.strip(), widgets
+    except OpenRouterError as exc:
+        logger.warning("Tool-calling tutor failed, falling back to text: %s", exc)
+
+    reply_text = openrouter.chat(model, messages, temperature=0.5, max_tokens=1400)
+    return parse_reply(reply_text)
+
+
+def _synthesize_widget(
+    *,
+    model: str,
+    student_message: str,
+    assistant_text: str,
+    scope: dict,
+    context: str,
+) -> list[dict]:
+    """Dedicated widget agent when the main tutor did not emit tools."""
+    try:
+        raw = openrouter.chat(
+            model,
+            [
+                {
+                    "role": "user",
+                    "content": WIDGET_SYNTH_PROMPT.format(
+                        student=student_message[:1500],
+                        assistant=assistant_text[:1500] or "(widget only — no prose)",
+                        mode=scope["mode"],
+                        context=context[:6000],
+                    ),
+                }
+            ],
+            temperature=0.2,
+            max_tokens=700,
+        )
+        data = parse_json(raw)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Widget synthesis failed: %s", exc)
+        return []
+
+    widget = data.get("widget")
+    if not isinstance(widget, dict):
+        return []
+    normalized = _normalize_widget(widget)
+    return [normalized] if normalized else []
+
+
 def generate_reply(conversation: Conversation, user_message: str) -> Message:
     user = conversation.user
     settings_obj = get_user_settings(user)
@@ -199,6 +292,7 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
         topics=scope["topics"] or None,
         limit=6,
     )
+    context = _context_block(chunks)
 
     memories = memory.recall_for_tutoring(
         user.id,
@@ -214,18 +308,27 @@ def generate_reply(conversation: Conversation, user_message: str) -> Message:
         mode=scope["mode"],
         lesson_scope=lesson_scope,
         topic_scope=topic_scope,
-        widget_guide=WIDGET_GUIDE,
+        tool_guide=TOOL_GUIDE,
         memories=_format_memories(memories),
-        context=_context_block(chunks),
+        context=context,
     )
 
     messages = [{"role": "system", "content": system}]
     messages.extend(_history_messages(conversation))
     messages.append({"role": "user", "content": user_message})
 
-    reply_text = openrouter.chat(model, messages, temperature=0.5, max_tokens=1400)
+    force_tools = _wants_interactive(user_message, scope)
+    display_text, widgets = _run_tutor(model, messages, force_tools=force_tools)
 
-    display_text, widgets = parse_reply(reply_text)
+    if not widgets and force_tools and chunks:
+        widgets = _synthesize_widget(
+            model=model,
+            student_message=user_message,
+            assistant_text=display_text,
+            scope=scope,
+            context=context,
+        )
+
     assistant_msg = Message.objects.create(
         conversation=conversation,
         role=Message.Role.ASSISTANT,

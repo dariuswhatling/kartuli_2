@@ -5,7 +5,9 @@ completions and a plain HTTP request for the public model catalogue.
 """
 from __future__ import annotations
 
+import json
 import logging
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
@@ -75,6 +77,94 @@ def list_models(cache_token: int = 0) -> list[dict[str, Any]]:
         return []
 
 
+@dataclass
+class ToolCall:
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
+class ChatResult:
+    content: str
+    tool_calls: list[ToolCall] = field(default_factory=list)
+
+
+def _completion_kwargs(
+    model: str,
+    messages: list[dict[str, Any]],
+    *,
+    temperature: float,
+    max_tokens: int | None,
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str | dict[str, Any] | None = None,
+    response_format: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "extra_headers": _extra_headers(),
+    }
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    if tools:
+        kwargs["tools"] = tools
+    if tool_choice is not None:
+        kwargs["tool_choice"] = tool_choice
+    if response_format is not None:
+        kwargs["response_format"] = response_format
+    return kwargs
+
+
+def _parse_tool_calls(message: Any) -> list[ToolCall]:
+    parsed: list[ToolCall] = []
+    for tc in message.tool_calls or []:
+        fn = tc.function
+        try:
+            args = json.loads(fn.arguments or "{}")
+        except json.JSONDecodeError:
+            args = {}
+        if not isinstance(args, dict):
+            args = {}
+        parsed.append(ToolCall(id=tc.id, name=fn.name, arguments=args))
+    return parsed
+
+
+def chat_completion(
+    model: str,
+    messages: list[dict[str, Any]],
+    *,
+    temperature: float = 0.4,
+    max_tokens: int | None = None,
+    tools: list[dict[str, Any]] | None = None,
+    tool_choice: str | dict[str, Any] | None = None,
+    response_format: dict[str, str] | None = None,
+) -> ChatResult:
+    """Run a chat completion and return assistant text plus any tool calls."""
+    client = get_client()
+    try:
+        completion = client.chat.completions.create(
+            **_completion_kwargs(
+                model,
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                tools=tools,
+                tool_choice=tool_choice,
+                response_format=response_format,
+            )
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise OpenRouterError(f"OpenRouter chat request failed: {exc}") from exc
+
+    message = completion.choices[0].message
+    return ChatResult(
+        content=(message.content or "").strip(),
+        tool_calls=_parse_tool_calls(message),
+    )
+
+
 def chat(
     model: str,
     messages: list[dict[str, str]],
@@ -83,15 +173,9 @@ def chat(
     max_tokens: int | None = None,
 ) -> str:
     """Run a chat completion and return the assistant text."""
-    client = get_client()
-    try:
-        completion = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            extra_headers=_extra_headers(),
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise OpenRouterError(f"OpenRouter chat request failed: {exc}") from exc
-    return (completion.choices[0].message.content or "").strip()
+    return chat_completion(
+        model,
+        messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    ).content

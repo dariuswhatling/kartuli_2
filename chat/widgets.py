@@ -21,7 +21,147 @@ SUPPORTED_TYPES = {
     "self_rating",
 }
 
+TOOL_TO_TYPE = {
+    "show_mcq": "mcq",
+    "show_true_false": "true_false",
+    "show_translate_pick": "translate_pick",
+    "show_flashcard": "flashcard",
+    "show_fill_blank": "fill_blank",
+    "show_conjugate": "conjugate",
+    "show_self_rating": "self_rating",
+}
+
 CLIENT_HIDDEN = {"answer", "back", "explanation"}
+
+WIDGET_TOOLS: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "show_mcq",
+            "description": "Show a multiple-choice question card the student taps to answer.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {"type": "string", "description": "The question text"},
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "minItems": 2,
+                        "description": "Answer choices",
+                    },
+                    "answer": {
+                        "type": "integer",
+                        "description": "0-based index of the correct option",
+                    },
+                    "explanation": {"type": "string", "description": "Feedback after answering"},
+                },
+                "required": ["prompt", "options", "answer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_true_false",
+            "description": "Show a true/false statement card.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "statement": {"type": "string"},
+                    "answer": {"type": "boolean"},
+                    "explanation": {"type": "string"},
+                },
+                "required": ["statement", "answer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_translate_pick",
+            "description": "Show Georgian text; student picks the English translation.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "georgian": {"type": "string"},
+                    "translit": {"type": "string"},
+                    "options": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+                    "answer": {"type": "integer"},
+                    "explanation": {"type": "string"},
+                },
+                "required": ["georgian", "options", "answer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_flashcard",
+            "description": "Show a flashcard: front visible, student reveals back and self-grades.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "front": {"type": "string"},
+                    "back": {"type": "string"},
+                    "hint": {"type": "string"},
+                },
+                "required": ["front", "back"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_fill_blank",
+            "description": "Show a sentence with a blank; student picks the missing word.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "before": {"type": "string"},
+                    "after": {"type": "string"},
+                    "options": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+                    "answer": {"type": "integer"},
+                    "explanation": {"type": "string"},
+                },
+                "required": ["before", "after", "options", "answer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_conjugate",
+            "description": "Show a verb conjugation drill with multiple choice.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "verb": {"type": "string"},
+                    "tense": {"type": "string"},
+                    "subject": {"type": "string"},
+                    "options": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+                    "answer": {"type": "integer"},
+                    "explanation": {"type": "string"},
+                },
+                "required": ["options", "answer"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "show_self_rating",
+            "description": "Ask the student to rate confidence 1–5 after teaching.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {"type": "string"},
+                    "scale": {"type": "integer", "minimum": 3, "maximum": 5},
+                },
+                "required": ["prompt"],
+            },
+        },
+    },
+]
 
 
 def _new_id() -> str:
@@ -148,6 +288,24 @@ def _normalize_widget(raw: dict) -> dict | None:
         )
 
     return widget
+
+
+def widgets_from_tool_calls(tool_calls: list[Any]) -> list[dict]:
+    """Convert model tool calls into validated widget payloads."""
+    widgets: list[dict] = []
+    for tc in tool_calls:
+        name = getattr(tc, "name", None) or ""
+        args = getattr(tc, "arguments", None) or {}
+        wtype = TOOL_TO_TYPE.get(name)
+        if not wtype or not isinstance(args, dict):
+            continue
+        raw = {"type": wtype, **args}
+        normalized = _normalize_widget(raw)
+        if normalized:
+            widgets.append(normalized)
+        if len(widgets) >= 2:
+            break
+    return widgets
 
 
 def parse_reply(text: str) -> tuple[str, list[dict]]:

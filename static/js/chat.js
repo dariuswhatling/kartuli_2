@@ -320,29 +320,41 @@
         });
     }
 
-    function mountMessage(msgEl) {
-        var messageId = msgEl.dataset.messageId;
-        var stack = msgEl.querySelector(".widget-stack");
+    function mountMessage(container) {
+        var messageId = container.dataset.messageId;
+        var stack = container.querySelector(".widget-stack");
         if (stack && messageId) renderWidgets(stack, messageId);
     }
 
     function buildMessageEl(role, data) {
+        if (role === "assistant") {
+            var turn = el("div", "msg-turn");
+            if (data.id) turn.dataset.messageId = String(data.id);
+            if (data.content) {
+                var bubble = el("div", "msg assistant");
+                bubble.appendChild(el("div", "msg-text", data.content));
+                turn.appendChild(bubble);
+            }
+            if (data.widgets && data.widgets.length) {
+                var stack = el("div", "widget-stack");
+                stack.dataset.widgets = JSON.stringify(data.widgets);
+                turn.appendChild(stack);
+            }
+            if (turn.children.length) {
+                mountMessage(turn);
+                return turn;
+            }
+        }
+
         var div = el("div", "msg " + role);
         if (data.id) div.dataset.messageId = String(data.id);
         if (data.content) {
-            var text = el("div", "msg-text", data.content);
-            div.appendChild(text);
-        }
-        if (data.widgets && data.widgets.length) {
-            var stack = el("div", "widget-stack");
-            stack.dataset.widgets = JSON.stringify(data.widgets);
-            div.appendChild(stack);
-            mountMessage(div);
+            div.appendChild(el("div", "msg-text", data.content));
         }
         return div;
     }
 
-    document.querySelectorAll(".msg[data-message-id]").forEach(mountMessage);
+    document.querySelectorAll(".msg-turn[data-message-id], .msg[data-message-id]").forEach(mountMessage);
 
     composer.addEventListener("submit", async function (e) {
         e.preventDefault();

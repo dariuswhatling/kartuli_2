@@ -35,6 +35,7 @@ html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
     height: 100%;
+    height: -webkit-fill-available;
 }
 
 body {
@@ -48,11 +49,16 @@ body {
     min-height: 100%;
 }
 
-/* Chat: full-viewport column; only .messages scrolls. */
+/* Chat: lock to viewport; only .messages scrolls. */
 body.body--chat {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    height: -webkit-fill-available;
     display: flex;
     flex-direction: column;
-    height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
     background: var(--bg);
@@ -172,9 +178,9 @@ a:hover { color: var(--accent-hover); }
     flex-direction: column;
     min-height: 0;
     width: 100%;
-    max-width: none;
-    margin: 0;
-    padding: 0;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     overflow: hidden;
     background: var(--bg);
 }
@@ -536,6 +542,7 @@ input:focus, select:focus, textarea:focus {
     flex: 1;
     min-height: 0;
     width: 100%;
+    max-width: none;
     background: var(--bg);
 }
 .chat-toolbar {
@@ -597,24 +604,31 @@ input:focus, select:focus, textarea:focus {
     margin: 0;
     white-space: pre-wrap;
 }
-.msg-text + .widget-stack { margin-top: 10px; }
+.msg-turn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    flex: 0 0 auto;
+}
 
-/* ---- Interactive widgets ---- */
+/* ---- Interactive widgets (separate cards, not inside text bubbles) ---- */
 .widget-stack {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
     min-width: 0;
-}
-.msg.assistant:has(.widget-stack) {
-    max-width: 92%;
+    flex: 0 0 auto;
 }
 .widget {
-    background: var(--surface-2);
+    width: 100%;
+    background: var(--surface);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--radius-lg);
     padding: 14px;
+    box-shadow: var(--shadow-sm);
 }
 .widget-type {
     font-size: 10px;
@@ -823,7 +837,6 @@ th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: upp
     .settings-card-header .btn { align-self: flex-start; }
     .row-between--lesson-header { flex-direction: column; align-items: flex-start; }
     .msg { max-width: 90%; }
-    .msg.assistant:has(.widget-stack) { max-width: 94%; }
     .widget { padding: 10px; }
     .composer textarea { font-size: 16px; }
 }
