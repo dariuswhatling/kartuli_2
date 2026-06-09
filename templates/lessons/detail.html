@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}{{ lesson.title }} · Kartuli Tutor{% endblock %}
+{% block content %}
+<div class="row-between">
+    <h1 style="font-size:22px;margin:0">{{ lesson.title }}</h1>
+    <a class="btn btn-ghost btn-sm" href="{% url 'accounts:settings' %}">← Back to settings</a>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <div class="row-between">
+        <span class="status {{ lesson.status }}">{{ lesson.get_status_display }}</span>
+        <span class="muted small">{{ lesson.chunk_count }} chunks · uploaded {{ lesson.uploaded_at|date:"M j, Y" }}</span>
+    </div>
+    {% if lesson.summary %}<p style="margin-top:14px">{{ lesson.summary }}</p>{% endif %}
+    <div>{% for t in lesson.topics %}<span class="pill">{{ t }}</span>{% endfor %}</div>
+    {% if lesson.error %}<div class="flash flash-error" style="margin-top:12px">{{ lesson.error }}</div>{% endif %}
+</div>
+
+{% for chunk in lesson.chunks.all %}
+<div class="card">
+    <div class="row-between">
+        <strong>{{ chunk.section|default:"Chunk" }}</strong>
+        <span>{% for t in chunk.topics %}<span class="pill">{{ t }}</span>{% endfor %}</span>
+    </div>
+    <p style="white-space:pre-wrap;margin:12px 0 0">{{ chunk.text }}</p>
+    {% if chunk.vocab %}
+    <table style="margin-top:12px">
+        <thead><tr><th>Georgian</th><th>Translit</th><th>English</th></tr></thead>
+        <tbody>
+        {% for v in chunk.vocab %}
+            <tr><td>{{ v.ka }}</td><td class="muted">{{ v.translit }}</td><td>{{ v.en }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

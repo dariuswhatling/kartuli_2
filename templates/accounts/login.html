@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Log in · Kartuli Tutor{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+    <div class="card">
+        <h1>Welcome back</h1>
+        {% if form.errors %}
+        <div class="flash flash-error">Invalid username or password.</div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="field">
+                <label for="id_username">Username</label>
+                {{ form.username }}
+            </div>
+            <div class="field">
+                <label for="id_password">Password</label>
+                {{ form.password }}
+            </div>
+            <button class="btn" type="submit" style="width:100%">Log in</button>
+        </form>
+        <p class="auth-alt muted">No account? <a href="{% url 'accounts:signup' %}">Sign up</a></p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sign up · Kartuli Tutor{% endblock %}
+{% block content %}
+<div class="auth-wrap">
+    <div class="card">
+        <h1>Create your account</h1>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="small flash-error" style="padding:6px 0">{{ field.errors|striptags }}</div>{% endif %}
+                {% if field.help_text %}<div class="small muted">{{ field.help_text|safe }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button class="btn" type="submit" style="width:100%">Sign up</button>
+        </form>
+        <p class="auth-alt muted">Already have an account? <a href="{% url 'accounts:login' %}">Log in</a></p>
+    </div>
+</div>
+{% endblock %}

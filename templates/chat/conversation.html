@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Chat · Kartuli Tutor{% endblock %}
+{% block content %}
+<div class="chat-shell">
+    <aside class="sidebar">
+        <form method="post" action="{% url 'chat:new_conversation' %}">
+            {% csrf_token %}
+            <button class="btn" type="submit" style="width:100%">+ New session</button>
+        </form>
+
+        <div class="card" style="padding:14px">
+            <div class="muted small" style="margin-bottom:8px">Sessions</div>
+            <div class="conv-list">
+                {% for c in conversations %}
+                <a class="conv-item {% if c.pk == conversation.pk %}active{% endif %}" href="{% url 'chat:conversation' c.pk %}">
+                    <span>{{ c.title|truncatechars:24 }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card" style="padding:14px">
+            <div class="muted small" style="margin-bottom:8px">Focus areas (weakest)</div>
+            {% for s in weak_skills %}
+            <div class="row-between" style="margin-bottom:6px">
+                <span class="small">{{ s.topic }}</span>
+                <span class="pill {% if s.score < 0.4 %}bad{% elif s.score < 0.7 %}warn{% else %}good{% endif %}">{{ s.score|floatformat:2 }}</span>
+            </div>
+            {% empty %}
+            <div class="muted small">No quiz history yet.</div>
+            {% endfor %}
+            <a class="small" href="{% url 'chat:progress' %}">View full progress →</a>
+        </div>
+    </aside>
+
+    <section class="chat-panel">
+        <div class="messages" id="messages">
+            {% if not openrouter_ready %}
+            <div class="flash flash-error">OpenRouter API key is not configured. Add <code>OPENROUTER_API_KEY</code> to your <code>.env</code>.</div>
+            {% endif %}
+            {% if not has_lessons %}
+            <div class="empty-hint">
+                <p>No lessons loaded yet.</p>
+                <p>Go to <a href="{% url 'accounts:settings' %}">Settings</a> to upload your Kartuli PDFs, then come back and say things like <em>“quiz me on verbs from lesson 3”</em>.</p>
+            </div>
+            {% endif %}
+            {% for m in messages_list %}
+            <div class="msg {{ m.role }}">{{ m.content }}</div>
+            {% endfor %}
+        </div>
+        <form class="composer" id="composer" data-url="{% url 'chat:send' conversation.pk %}">
+            {% csrf_token %}
+            <textarea id="message-input" name="message" placeholder="Ask to be quizzed, or to go over a specific lesson or topic…" required></textarea>
+            <button class="btn" type="submit" id="send-btn">Send</button>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% load static %}
+<script src="{% static 'js/chat.js' %}"></script>
+{% endblock %}

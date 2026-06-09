@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Progress · Kartuli Tutor{% endblock %}
+{% block content %}
+<h1 style="font-size:22px;margin-top:0">Your progress</h1>
+<div class="card">
+    {% if skills %}
+    <table>
+        <thead>
+            <tr><th>Topic</th><th>Lesson</th><th>Mastery</th><th>Level</th><th>Attempts</th></tr>
+        </thead>
+        <tbody>
+            {% for s in skills %}
+            <tr>
+                <td>{{ s.topic }}</td>
+                <td class="muted">{% if s.lesson %}{{ s.lesson.title }}{% else %}All{% endif %}</td>
+                <td>
+                    <div class="bar"><span style="width: {% widthratio s.score 1 100 %}%"></span></div>
+                </td>
+                <td>
+                    {% if s.score < 0.4 %}<span class="pill bad">weak</span>
+                    {% elif s.score < 0.7 %}<span class="pill warn">improving</span>
+                    {% else %}<span class="pill good">strong</span>{% endif %}
+                </td>
+                <td>{{ s.attempts }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No quiz history yet. Start a chat session and ask to be tested.</p>
+    {% endif %}
+</div>
+{% endblock %}
