@@ -5,12 +5,12 @@
     <div class="card">
         <h1>Welcome back</h1>
         {% if form.errors %}
-        <div class="flash flash-error">Invalid username or password.</div>
+        <div class="flash flash-error">Invalid name or password.</div>
         {% endif %}
         <form method="post">
             {% csrf_token %}
             <div class="field">
-                <label for="id_username">Username</label>
+                <label for="id_username">Name</label>
                 {{ form.username }}
             </div>
             <div class="field">

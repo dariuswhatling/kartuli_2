@@ -99,12 +99,8 @@ else:
         }
     }
 
-AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
-]
+# No minimum length or complexity rules — users pick any name/password they want.
+AUTH_PASSWORD_VALIDATORS = []
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"

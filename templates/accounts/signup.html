@@ -6,14 +6,19 @@
         <h1>Create your account</h1>
         <form method="post">
             {% csrf_token %}
-            {% for field in form %}
             <div class="field">
-                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}<div class="small flash-error" style="padding:6px 0">{{ field.errors|striptags }}</div>{% endif %}
-                {% if field.help_text %}<div class="small muted">{{ field.help_text|safe }}</div>{% endif %}
+                <label for="id_name">Name</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="small flash-error" style="padding:6px 0">{{ form.name.errors|striptags }}</div>{% endif %}
             </div>
-            {% endfor %}
+            <div class="field">
+                <label for="id_password">Password</label>
+                {{ form.password }}
+                {% if form.password.errors %}<div class="small flash-error" style="padding:6px 0">{{ form.password.errors|striptags }}</div>{% endif %}
+            </div>
+            {% if form.non_field_errors %}
+            <div class="flash flash-error">{{ form.non_field_errors|striptags }}</div>
+            {% endif %}
             <button class="btn" type="submit" style="width:100%">Sign up</button>
         </form>
         <p class="auth-alt muted">Already have an account? <a href="{% url 'accounts:login' %}">Log in</a></p>
